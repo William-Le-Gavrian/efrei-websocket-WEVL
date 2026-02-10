@@ -50,7 +50,7 @@ function Lobby({ onJoin, initialPseudo }) {
             <button 
               type="button"
               onClick={() => setGameType("Tictactoe")}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${gameType === 'T' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${gameType === 'Tictactoe' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
             >
               ⭕ TICTACTOE
             </button>
