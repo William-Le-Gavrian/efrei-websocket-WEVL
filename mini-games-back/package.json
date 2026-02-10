@@ -16,5 +16,10 @@
     "url": "https://github.com/William-Le-Gavrian/efrei-websocket-WEVL/issues"
   },
   "homepage": "https://github.com/William-Le-Gavrian/efrei-websocket-WEVL#readme",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "express": "^5.2.1",
+    "ws": "^8.19.0"
+  },
+  "type": "module"
 }
