@@ -27,10 +27,6 @@
 * **Lucide React** : Iconographie moderne et minimaliste.
 * **Socket.io-client** : Gestion de la communication bidirectionnelle.
 
-### Back-end
-* **Node.js & Express**
-* **Socket.io** : Gestion des instances de jeux, des rooms et de la logique de victoire.
-
 ---
 
 ## 🎮 Jeux Disponibles
@@ -70,17 +66,11 @@ Le projet repose sur une architecture événementielle robuste. Le serveur agit 
 ### Lancement
 1.  **Clonage du projet** :
     ```bash
-    git clone [https://github.com/votre-repo/wevl-io.git](https://github.com/votre-repo/wevl-io.git)
+    git clone https://github.com/William-Le-Gavrian/efrei-websocket-WEVL.git
     ```
 2.  **Installation et lancement du serveur** :
     ```bash
-    cd server
-    npm install
-    npm run dev
-    ```
-3.  **Installation et lancement du client** :
-    ```bash
-    cd client
+    cd mini-games-back
     npm install
     npm run dev
     ```
