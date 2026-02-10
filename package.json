@@ -1,0 +1,20 @@
+{
+  "name": "efrei-websocket-wevl",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node script.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/William-Le-Gavrian/efrei-websocket-WEVL.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/William-Le-Gavrian/efrei-websocket-WEVL/issues"
+  },
+  "homepage": "https://github.com/William-Le-Gavrian/efrei-websocket-WEVL#readme",
+  "description": ""
+}
