@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import io from 'socket.io-client';
-import { Trophy, User, Gamepad2, LogOut } from 'lucide-react'; // Import des icônes
+import { Trophy, User, Gamepad2, LogOut } from 'lucide-react';
 import Lobby from './components/Lobby';
 import Tictactoe from './components/Tictactoe';
 import Shifumi from './components/Shifumi';
@@ -16,16 +16,13 @@ function App() {
   const [stats, setStats] = useState({ wins: 0 });
 
   useEffect(() => {
-    // Charger le pseudo
     const savedPseudo = localStorage.getItem("player_pseudo");
     if (savedPseudo) {
       setMyPseudo(savedPseudo);
-      // Charger aussi les stats liées à ce pseudo
       const savedStats = localStorage.getItem(`stats_${savedPseudo.toLowerCase()}`);
       if (savedStats) setStats(JSON.parse(savedStats));
     }
 
-    // Écouter le serveur
     socket.on("update_ui", (state) => {
       setGameState(state);
     });
@@ -63,18 +60,37 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 font-gaming text-slate-200 selection:bg-blue-500/30 overflow-x-hidden">
+    <div className="min-h-screen bg-[#020617] font-gaming text-slate-200 selection:bg-blue-500/30 overflow-x-hidden">
       
-      {/* BACKGROUND EFFECTS : Les lueurs colorées qui flottent */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-blue-600/10 blur-[120px] animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-purple-600/10 blur-[120px] animate-pulse" />
+      {/* BACKGROUND SPACE SYSTEM - VERSION AMÉLIORÉE */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-[#020617]">
+        {/* Étoiles (Augmentées pour plus de clarté) */}
+        <div 
+          className="absolute inset-0 opacity-60" 
+          style={{ 
+            backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', 
+            backgroundSize: '50px 50px' 
+          }}
+        />
+
+        {/* Le Soleil (Orange/Jaune bien plus présent) */}
+        <div className="absolute -top-20 -left-20 w-[500px] h-[500px] rounded-full bg-orange-500/30 blur-[100px] animate-pulse" />
+        <div className="absolute top-10 left-10 w-32 h-32 rounded-full bg-yellow-400/20 blur-[50px]" />
+
+        {/* Planète Bleue (Plus lumineuse) */}
+        <div className="absolute top-[20%] right-[15%] w-72 h-72 rounded-full bg-blue-500/30 blur-[80px]" />
+
+        {/* Planète Rouge (Maintenant bien visible en bas à gauche) */}
+        <div className="absolute bottom-[20%] left-[10%] w-64 h-64 rounded-full bg-red-500/30 blur-[70px]" />
+
+        {/* Anneaux d'orbites (Légèrement plus blancs pour le contraste) */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] border border-white/10 rounded-full" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] h-[1100px] border border-white/10 rounded-full opacity-50" />
       </div>
 
       {/* HEADER GAMING PERMANENT */}
       <header className="sticky top-0 z-50 border-b border-white/5 bg-slate-950/60 backdrop-blur-xl p-4">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
-          
           <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.location.reload()}>
             <div className="p-2 bg-blue-600 rounded-lg shadow-lg shadow-blue-900/40 group-hover:rotate-12 transition-transform">
               <Gamepad2 size={20} className="text-white" />
@@ -110,7 +126,7 @@ function App() {
           <Lobby onJoin={handleJoin} initialPseudo={myPseudo} />
         ) : (
           <div className="animate-in fade-in zoom-in duration-300">
-            {currentGame === "Tictactoe" ? (
+            {currentGame === "morpion" ? (
               <Tictactoe gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
             ) : (
               <Shifumi gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
