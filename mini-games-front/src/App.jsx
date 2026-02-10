@@ -1,33 +1,29 @@
 import { useState, useEffect } from 'react';
 import io from 'socket.io-client';
-import Lobby from './components/lobby/Lobby';
-import Morpion from './components/morpion/Morpion';
+import Lobby from './components/Lobby';
+import Tictactoe from './components/Tictactoe';
+import Shifumi from './components/Shifumi';
 
-// Connexion au back-end
 const socket = io("http://localhost:3000");
 
 function App() {
   const [isJoined, setIsJoined] = useState(false);
   const [gameState, setGameState] = useState(null);
   const [myPseudo, setMyPseudo] = useState("");
+  const [currentGame, setCurrentGame] = useState("");
 
   useEffect(() => {
     socket.on("update_ui", (state) => {
       setGameState(state);
     });
-
     socket.on("security_error", (msg) => alert(msg));
-
-    return () => {
-      socket.off("update_ui");
-      socket.off("security_error");
-    };
+    return () => socket.off();
   }, []);
 
-  const handleJoin = (pseudo, room) => {
-    if (!pseudo || !room) return alert("Remplis tous les champs !");
+  const handleJoin = (pseudo, room, gameType) => {
     setMyPseudo(pseudo);
-    socket.emit("join_game", { room, pseudo });
+    setCurrentGame(gameType);
+    socket.emit("join_game", { room, pseudo, gameType });
     setIsJoined(true);
   };
 
@@ -40,12 +36,24 @@ function App() {
       {!isJoined ? (
         <Lobby onJoin={handleJoin} />
       ) : (
-        <Morpion 
-          gameState={gameState} 
-          onMove={handleMove}
-          myPseudo={myPseudo}
-          socketId={socket.id}
-        />
+        <>
+          {/* On affiche l'un ou l'autre selon le choix du lobby */}
+          {currentGame === "morpion" ? (
+            <Tictactoe 
+              gameState={gameState} 
+              onMove={handleMove}
+              myPseudo={myPseudo}
+              socketId={socket.id}
+            />
+          ) : (
+            <Shifumi 
+              gameState={gameState} 
+              onMove={handleMove}
+              myPseudo={myPseudo}
+              socketId={socket.id}
+            />
+          )}
+        </>
       )}
     </div>
   );
