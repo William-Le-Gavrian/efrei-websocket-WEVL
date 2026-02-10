@@ -18,7 +18,9 @@
   "homepage": "https://github.com/William-Le-Gavrian/efrei-websocket-WEVL#readme",
   "description": "",
   "dependencies": {
+    "cors": "^2.8.6",
     "express": "^5.2.1",
+    "socket.io": "^4.8.3",
     "ws": "^8.19.0"
   },
   "type": "module"
