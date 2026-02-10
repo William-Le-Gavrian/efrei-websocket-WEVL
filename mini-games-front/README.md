@@ -1,6 +1,6 @@
-# 🚀 WEVL.IO — Arena de Mini-Jeux Spatiale
+# 🚀 WEVL — Arena de Mini-Jeux Spatiale
 
-**WEVL.IO** est une plateforme de jeux multijoueurs en temps réel basée sur les technologies **WebSockets**. Affrontez vos adversaires dans un environnement immersif inspiré du système solaire, où chaque salle de jeu est une planète à conquérir.
+**WEVL** est une plateforme de jeux multijoueurs en temps réel basée sur les technologies **WebSockets**. Affrontez vos adversaires dans un environnement immersif inspiré du système solaire, où chaque salle de jeu est une planète à conquérir.
 
 ---
 
