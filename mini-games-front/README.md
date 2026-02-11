@@ -1,70 +1,88 @@
-# Getting Started with Create React App
+# 🚀 WEVL — Arena de Mini-Jeux Spatiale
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+**WEVL** est une plateforme de jeux multijoueurs en temps réel basée sur les technologies **WebSockets**. Affrontez vos adversaires dans un environnement immersif inspiré du système solaire, où chaque salle de jeu est une planète à conquérir.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## ✨ Fonctionnalités
 
-### `npm start`
+* **Multijoueur en temps réel** : Utilisation de `Socket.io` pour une synchronisation instantanée des mouvements (latence minimale).
+* **Système de Salles (Dojos Spatiaux)** : 9 salles prédéfinies basées sur les planètes (Mercure, Mars, Jupiter, jusqu'à la station Pluton).
+* **Gestion des Lobby & Sécurité** : 
+    * Vérification de la disponibilité des salles côté serveur.
+    * **Limitation stricte à 2 joueurs** : Un système de verrouillage empêche toute intrusion dans une partie en cours.
+* **Design "Triple A"** : 
+    * Interface en **Glassmorphism** (transparence, flous directionnels et bordures cristallines).
+    * Arrière-plan dynamique simulant une nébuleuse avec planètes et étoiles scintillantes.
+    * Typographie **Rajdhani** typée gaming/e-sport.
+* **Persistance locale** : Sauvegarde automatique du pseudo et du compteur de victoires via le `localStorage`.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+---
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 🛠 Stack Technique
 
-### `npm test`
+### Front-end
+* **React.js** (Vite)
+* **Tailwind CSS** : Utilisation intensive d'utilitaires personnalisés pour le design spatial et les animations (Shimmer, Pulse, Glow).
+* **Lucide React** : Iconographie moderne et minimaliste.
+* **Socket.io-client** : Gestion de la communication bidirectionnelle.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+---
 
-### `npm run build`
+## 🎮 Jeux Disponibles
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### 1. Tic-Tac-Toe (Morpion)
+Revisité avec une esthétique Cyber-Néon.
+* Symboles stylisés : `✕` (cosmonaute X) et `◯` (cosmonaute O).
+* Indicateur de tour dynamique avec halo lumineux.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### 2. Shi-Fu-Mi (Pierre-Feuille-Ciseaux)
+Un duel psychologique avec des visuels à haute intensité.
+* Reveal dramatique des choix des joueurs.
+* Animations de "Shake" et effets de particules lors du résultat.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
 
-### `npm run eject`
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+---
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## 🧠 Architecture & Communication
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+Le projet repose sur une architecture événementielle robuste. Le serveur agit comme une "Source de Vérité" (SSOT) :
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+1.  **Phase de Join** : Le serveur vérifie le nombre de clients via `io.sockets.adapter.rooms.get(room)`. Si `size >= 2`, l'accès est refusé.
+2.  **Gestion d'état** : Chaque coup (`make_move`) déclenche une mise à jour de la logique côté serveur, qui renvoie l'état complet à la salle via `update_ui`.
+3.  **Synchronisation** : L'interface réagit immédiatement aux changements d'état grâce aux hooks `useEffect` de React.
 
-## Learn More
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+---
 
-### Code Splitting
+## ⚙️ Installation
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### Prérequis
+* Node.js (v16 ou supérieur)
+* npm ou yarn
 
-### Analyzing the Bundle Size
+### Lancement
+1.  **Clonage du projet** :
+    ```bash
+    git clone https://github.com/William-Le-Gavrian/efrei-websocket-WEVL.git
+    ```
+2.  **Installation et lancement du serveur** :
+    ```bash
+    cd mini-games-back
+    npm install
+    npm run dev
+    ```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+---
 
-### Making a Progressive Web App
+## 💅 Identité Visuelle
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+* **Dark Mode** : Fond Deep Space (`#020617`).
+* **Accents** : Bleu Électrique (Joueur 1), Rose Néon (Joueur 2), Jaune Solaire (Highlight).
+* **Effets** : Utilisation de `backdrop-blur-xl` pour simuler des interfaces de cockpit spatial.
 
-### Advanced Configuration
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+**Projet développé dans le cadre du module Webhook/Websocket - EFREI 2026.**
