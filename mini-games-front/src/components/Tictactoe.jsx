@@ -10,12 +10,13 @@ function Tictactoe({ gameState, onMove, myPseudo, socketId }) {
     </div>
   );
 
-  const { board, players, turn, status } = gameState;
+  const { board, players, turn, status, lastResult } = gameState;
   const currentPlayer = players[turn];
   const isMyTurn = currentPlayer?.id === socketId;
 
-  // On identifie si je suis X ou O pour le style
+  // On identifie si je suis X (index 0) ou O (index 1)
   const myIndex = players.findIndex(p => p.id === socketId);
+  const mySymbol = myIndex === 0 ? 'X' : 'O';
 
   return (
     <div className="min-h-[80vh] text-white flex flex-col items-center p-4 sm:p-6 font-gaming bg-transparent">
@@ -24,21 +25,21 @@ function Tictactoe({ gameState, onMove, myPseudo, socketId }) {
       <div className="w-full max-w-md grid grid-cols-3 items-center bg-slate-900/40 backdrop-blur-xl p-4 rounded-3xl border border-white/10 shadow-2xl mb-10 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-rose-500/5 pointer-events-none"></div>
         
-        <div className={`text-center z-10 transition-all duration-500 ${turn === 0 ? 'scale-110' : 'opacity-30'}`}>
+        <div className={`text-center z-10 transition-all duration-500 ${status === 'playing' && turn === 0 ? 'scale-110' : 'opacity-30'}`}>
           <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">cosmonaute X</p>
           <p className="font-black text-xl text-blue-500 truncate drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]">{players[0]?.pseudo || '...'}</p>
         </div>
         
         <div className="text-center font-black text-white/20 italic text-2xl z-10">VS</div>
         
-        <div className={`text-center z-10 transition-all duration-500 ${turn === 1 ? 'scale-110' : 'opacity-30'}`}>
+        <div className={`text-center z-10 transition-all duration-500 ${status === 'playing' && turn === 1 ? 'scale-110' : 'opacity-30'}`}>
           <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">cosmonaute O</p>
           <p className="font-black text-xl text-rose-500 truncate drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]">{players[1]?.pseudo || '...'}</p>
         </div>
       </div>
 
-      {/* Info du tour en cours */}
-      <div className="mb-10 text-center animate-in fade-in slide-in-from-top-4 duration-700">
+      {/* Info du tour en cours OU Résultat final */}
+      <div className="mb-10 text-center animate-in fade-in zoom-in duration-700">
         {status === 'playing' ? (
           <div className={`px-8 py-2.5 rounded-full border-2 font-black transition-all tracking-[0.2em] text-xs uppercase shadow-lg
             ${isMyTurn 
@@ -46,14 +47,33 @@ function Tictactoe({ gameState, onMove, myPseudo, socketId }) {
               : 'border-white/5 text-white/20 bg-white/5'}`}>
             {isMyTurn ? "⭐ À TOI DE FRAPPER !" : `ATTENTE DE ${currentPlayer?.pseudo}...`}
           </div>
+        ) : status === 'finished' ? (
+          <div className="flex flex-col items-center gap-6">
+             <h1 className="text-6xl sm:text-7xl font-black italic uppercase tracking-tighter drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+                {lastResult === 'draw' ? (
+                  <span className="text-slate-400">ÉGALITÉ</span>
+                ) : lastResult === mySymbol ? (
+                  <span className="text-blue-500 animate-bounce inline-block">VICTOIRE</span>
+                ) : (
+                  <span className="text-rose-600">DÉFAITE</span>
+                )}
+             </h1>
+             
+             <button 
+               onClick={() => window.location.reload()}
+               className="group relative px-10 py-4 bg-white text-slate-950 font-black rounded-2xl hover:bg-blue-500 hover:text-white transition-all active:scale-95 overflow-hidden shadow-xl"
+             >
+               <span className="relative z-10 uppercase tracking-widest italic">Nouvelle Mission</span>
+               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
+             </button>
+          </div>
         ) : (
           <div className="text-blue-500 font-black italic tracking-widest animate-bounce uppercase">En attente d'un second pilote...</div>
         )}
       </div>
 
       {/* Grille de Jeu - Style Cybernetic */}
-      <div className="relative group">
-        {/* Halo lumineux derrière la grille */}
+      <div className={`relative group transition-opacity duration-500 ${status === 'finished' ? 'opacity-40 grayscale-[0.5]' : 'opacity-100'}`}>
         <div className="absolute -inset-4 bg-blue-500/5 blur-3xl rounded-full pointer-events-none"></div>
         
         <div className="relative grid grid-cols-3 gap-3 sm:gap-4 p-4 bg-slate-900/40 backdrop-blur-md rounded-[2.5rem] border border-white/10 shadow-2xl">
@@ -64,7 +84,7 @@ function Tictactoe({ gameState, onMove, myPseudo, socketId }) {
               disabled={!isMyTurn || cell !== null || status !== 'playing'}
               className={`
                 w-24 h-24 sm:w-32 sm:h-32 rounded-2xl flex items-center justify-center text-6xl font-black transition-all transform active:scale-90 relative overflow-hidden border
-                ${!cell && isMyTurn ? 'bg-white/5 border-white/10 hover:bg-blue-500/10 hover:border-blue-500/50 cursor-pointer' : 'bg-slate-950/40 border-transparent'}
+                ${!cell && isMyTurn && status === 'playing' ? 'bg-white/5 border-white/10 hover:bg-blue-500/10 hover:border-blue-500/50 cursor-pointer' : 'bg-slate-950/40 border-transparent cursor-default'}
                 ${cell === 'X' ? 'text-blue-500 drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]' : 'text-rose-500 drop-shadow-[0_0_15px_rgba(244,63,94,0.8)]'}
                 ${!isMyTurn && !cell ? 'opacity-10' : 'opacity-100'}
               `}
@@ -74,8 +94,7 @@ function Tictactoe({ gameState, onMove, myPseudo, socketId }) {
                   {cell === 'X' ? '✕' : '◯'}
                 </span>
               )}
-              {/* Effet de scan au survol sur les cases vides */}
-              {!cell && isMyTurn && (
+              {!cell && isMyTurn && status === 'playing' && (
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500/5 to-transparent -translate-y-full hover:animate-[shimmer_2s_infinite] pointer-events-none"></div>
               )}
             </button>
