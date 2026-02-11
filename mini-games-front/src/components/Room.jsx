@@ -1,32 +1,34 @@
 import {useEffect, useState} from "react";
 import io from "socket.io-client";
 
-const socket = io("http://localhost:3001");
+const socket = io("http://localhost:3000");
 
 export default function Room() {
-    // const [socket, setSocket] = useState(null);
-    // const [connected, setConnected] = useState(false);
-    //
-    // const [username, setUsername] = useState("");
-    // const [roomId, setRoomId] = useState("");
-    // const [joined, setJoined] = useState(false);
+    const [username, setUsername] = useState("");
+    const [roomId, setRoomId] = useState("");
+    const [joined, setJoined] = useState(false);
 
     const [message, setMessage] = useState("");
     const [messages, setMessages] = useState([]);
 
-    // const handleJoin = () => {
-    //     socket.emit('room:join', {username, roomId});
-    // }
+    const handleJoin = () => {
+        if(username.trim() && roomId.trim()) {
+            socket.emit('room:join', { username, roomId });
+            setJoined(true);
+        }
+    }
 
-    // const handleLeave = () => {
-    //     socket.emit('room:leave', {username, roomId})
-    // }
+    const handleLeave = () => {
+        socket.emit('room:leave');
+        setJoined(false);
+        setMessages([]);
+    }
 
     useEffect(() => {
         socket.on('room:message', (msg) => {
             setMessages((prev) => [
                 ...prev,
-                { type: "chat", username: "bonjour", content: msg, timestamp: Date.now(), self: true }
+                { type: "chat", username: msg.username, content: msg.content, timestamp: Date.now(), self: true }
             ]);
         })
         return () => socket.off("room:message");
@@ -35,7 +37,7 @@ export default function Room() {
     const handleMessage = (e) => {
         e.preventDefault();
         if(message.trim() !== "") {
-            socket.emit("room:message", message);
+            socket.emit("room:message", {msg: message});
             setMessage("");
         }
     }
@@ -44,20 +46,32 @@ export default function Room() {
 
     return (
         <div>
-            <h1>Chat Instantané</h1>
-            <ul>
-                {messages.map((msg, idx) => (
-                    <li key={idx}>{`${msg.username} : ${msg.content}`}</li>
-                ))}
-            </ul>
-            <form onSubmit={handleMessage}>
-                <input
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Écris un message..."
-                />
-                <button type="submit">Envoyer</button>
-            </form>
+            {!joined ? (
+                <div>
+                    <input placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} />
+                    <input placeholder="Room ID" value={roomId} onChange={e => setRoomId(e.target.value)} />
+                    <button onClick={handleJoin}>Rejoindre</button>
+                </div>
+            ) : (
+                <div>
+                    <button onClick={handleLeave}>Quitter la room</button>
+                    <ul>
+                        {messages.map((msg, idx) => (
+                            <li key={idx} style={{ fontStyle: msg.type === 'system' ? 'italic' : 'normal' }}>
+                                {msg.type === 'chat' ? `${msg.username} : ${msg.content.msg}` : msg.content.msg}
+                            </li>
+                        ))}
+                    </ul>
+                    <form onSubmit={handleMessage}>
+                        <input
+                            value={message}
+                            onChange={e => setMessage(e.target.value)}
+                            placeholder="Écris un message..."
+                        />
+                        <button type="submit">Envoyer</button>
+                    </form>
+                </div>
+            )}
         </div>
     );
 }
