@@ -5,8 +5,9 @@ import Lobby from './components/Lobby';
 import Tictactoe from './components/Tictactoe';
 import Shifumi from './components/Shifumi';
 import PseudoEntry from './components/PseudoEntry';
+import Room from "./components/Room.jsx";
 
-const socket = io("http://localhost:3000");
+const socket = io("http://localhost:3001");
 
 function App() {
   const [isJoined, setIsJoined] = useState(false);
@@ -106,17 +107,18 @@ function App() {
 
       {/* CONTENU PRINCIPAL */}
       <main className="relative z-10 py-10 px-4">
-        {!isJoined ? (
-          <Lobby onJoin={handleJoin} initialPseudo={myPseudo} />
-        ) : (
-          <div className="animate-in fade-in zoom-in duration-300">
-            {currentGame === "Tictactoe" ? (
-              <Tictactoe gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
-            ) : (
-              <Shifumi gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
-            )}
-          </div>
-        )}
+        <Room/>
+        {/*{!isJoined ? (*/}
+        {/*  <Lobby onJoin={handleJoin} initialPseudo={myPseudo} />*/}
+        {/*) : (*/}
+        {/*  <div className="animate-in fade-in zoom-in duration-300">*/}
+        {/*    {currentGame === "Tictactoe" ? (*/}
+        {/*      <Tictactoe gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />*/}
+        {/*    ) : (*/}
+        {/*      <Shifumi gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />*/}
+        {/*    )}*/}
+        {/*  </div>*/}
+        {/*)}*/}
       </main>
     </div>
   );

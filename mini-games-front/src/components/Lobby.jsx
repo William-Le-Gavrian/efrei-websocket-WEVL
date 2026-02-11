@@ -18,7 +18,6 @@ function Lobby({ onJoin, initialPseudo }) {
     <div className="flex items-center justify-center p-4 font-sans">
       <div className="w-full max-w-md p-8 bg-slate-900/50 backdrop-blur-xl rounded-3xl border border-slate-800 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
         
-        {/* Stats de l'utilisateur connecté */}
         <div className="flex flex-col items-center mb-8">
           <div className="bg-blue-500/10 border border-blue-500/30 px-4 py-2 rounded-2xl mb-4 text-center">
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Compte actif</p>
@@ -45,7 +44,6 @@ function Lobby({ onJoin, initialPseudo }) {
         </div>
         
         <form onSubmit={(e) => { e.preventDefault(); onJoin(initialPseudo, room, gameType); }} className="space-y-6">
-          {/* SÉLECTEUR DE JEU */}
           <div className="flex p-1 bg-slate-800 rounded-2xl gap-1">
             <button 
               type="button"
