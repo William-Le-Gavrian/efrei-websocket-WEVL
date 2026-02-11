@@ -25,14 +25,14 @@ function Tictactoe({ gameState, onMove, myPseudo, socketId }) {
         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-rose-500/5 pointer-events-none"></div>
         
         <div className={`text-center z-10 transition-all duration-500 ${turn === 0 ? 'scale-110' : 'opacity-30'}`}>
-          <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Guerrier X</p>
+          <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">cosmonaute X</p>
           <p className="font-black text-xl text-blue-500 truncate drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]">{players[0]?.pseudo || '...'}</p>
         </div>
         
         <div className="text-center font-black text-white/20 italic text-2xl z-10">VS</div>
         
         <div className={`text-center z-10 transition-all duration-500 ${turn === 1 ? 'scale-110' : 'opacity-30'}`}>
-          <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">Guerrier O</p>
+          <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">cosmonaute O</p>
           <p className="font-black text-xl text-rose-500 truncate drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]">{players[1]?.pseudo || '...'}</p>
         </div>
       </div>

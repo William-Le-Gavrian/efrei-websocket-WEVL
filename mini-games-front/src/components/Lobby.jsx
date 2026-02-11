@@ -69,7 +69,7 @@ function Lobby({ onJoin, initialPseudo }) {
           </div>
 
           <button className="w-full p-5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl transition-all active:scale-95 shadow-lg shadow-blue-900/40 uppercase italic tracking-widest">
-            Entrer dans l'Arène
+            Atterissage sur la Planète
           </button>
         </form>
       </div>

@@ -33,14 +33,14 @@ function PseudoEntry({ onSave }) {
         
         <div className="mb-8">
           <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic">
-            Bienvenue <span className="text-blue-400 drop-shadow-[0_0_10px_rgba(96,165,250,0.5)]">Guerrier</span>
+            Bienvenue <span className="text-blue-400 drop-shadow-[0_0_10px_rgba(96,165,250,0.5)]"></span>
           </h2>
           <div className="h-1 w-12 bg-blue-500 mx-auto mt-2 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.8)]"></div>
         </div>
 
         <p className="text-slate-200 text-sm mb-8 font-bold uppercase tracking-wider leading-tight drop-shadow-md">
           Entre ton identifiant pour marquer <br /> 
-          l'histoire de l'Arène.
+          l'histoire de la galaxie.
         </p>
         
         <form onSubmit={(e) => { e.preventDefault(); onSave(input); }} className="space-y-4">

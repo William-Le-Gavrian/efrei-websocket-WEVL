@@ -33,7 +33,7 @@
 
 ### 1. Tic-Tac-Toe (Morpion)
 Revisité avec une esthétique Cyber-Néon.
-* Symboles stylisés : `✕` (Guerrier X) et `◯` (Guerrier O).
+* Symboles stylisés : `✕` (cosmonaute X) et `◯` (cosmonaute O).
 * Indicateur de tour dynamique avec halo lumineux.
 
 ### 2. Shi-Fu-Mi (Pierre-Feuille-Ciseaux)
