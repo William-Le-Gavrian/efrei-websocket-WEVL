@@ -6,7 +6,7 @@ import Tictactoe from './components/Tictactoe';
 import Shifumi from './components/Shifumi';
 import PseudoEntry from './components/PseudoEntry';
 
-const socket = io("http://localhost:3000");
+const socket = io("http://localhost:3001");
 
 function App() {
   const [isJoined, setIsJoined] = useState(false);
@@ -25,6 +25,17 @@ function App() {
 
     socket.on("update_ui", (state) => {
       setGameState(state);
+      
+      if (state.status === 'finished' && state.lastResult === socket.id) {
+        setStats(prev => {
+          const newStats = { wins: prev.wins + 1 };
+          const currentPseudo = localStorage.getItem("player_pseudo");
+          if (currentPseudo) {
+            localStorage.setItem(`stats_${currentPseudo.toLowerCase()}`, JSON.stringify(newStats));
+          }
+          return newStats;
+        });
+      }
     });
 
     socket.on("security_error", (msg) => alert(msg));
@@ -41,7 +52,7 @@ function App() {
   };
 
   const handleJoin = (pseudo, room, gameType) => {
-    setCurrentGame(gameType);
+    setCurrentGame(gameType); // "tictactoe" ou "shifumi"
     socket.emit("join_game", { room, pseudo, gameType });
     setIsJoined(true);
   };
@@ -62,33 +73,20 @@ function App() {
   return (
     <div className="min-h-screen bg-[#020617] font-gaming text-slate-200 selection:bg-blue-500/30 overflow-x-hidden">
       
-      {/* BACKGROUND SPACE SYSTEM - VERSION AMÉLIORÉE */}
+      {/* BACKGROUND SPACE SYSTEM */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-[#020617]">
-        {/* Étoiles (Augmentées pour plus de clarté) */}
-        <div 
-          className="absolute inset-0 opacity-60" 
-          style={{ 
-            backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', 
-            backgroundSize: '50px 50px' 
-          }}
+        <div className="absolute inset-0 opacity-60" 
+          style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '50px 50px' }}
         />
-
-        {/* Le Soleil (Orange/Jaune bien plus présent) */}
         <div className="absolute -top-20 -left-20 w-[500px] h-[500px] rounded-full bg-orange-500/30 blur-[100px] animate-pulse" />
         <div className="absolute top-10 left-10 w-32 h-32 rounded-full bg-yellow-400/20 blur-[50px]" />
-
-        {/* Planète Bleue (Plus lumineuse) */}
         <div className="absolute top-[20%] right-[15%] w-72 h-72 rounded-full bg-blue-500/30 blur-[80px]" />
-
-        {/* Planète Rouge (Maintenant bien visible en bas à gauche) */}
         <div className="absolute bottom-[20%] left-[10%] w-64 h-64 rounded-full bg-red-500/30 blur-[70px]" />
-
-        {/* Anneaux d'orbites (Légèrement plus blancs pour le contraste) */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] border border-white/10 rounded-full" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] h-[1100px] border border-white/10 rounded-full opacity-50" />
       </div>
 
-      {/* HEADER GAMING PERMANENT */}
+      {/* HEADER GAMING */}
       <header className="sticky top-0 z-50 border-b border-white/5 bg-slate-950/60 backdrop-blur-xl p-4">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.location.reload()}>
@@ -104,16 +102,12 @@ function App() {
               <span className="text-xs font-bold uppercase tracking-wider">{myPseudo}</span>
             </div>
             
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/10 rounded-full border border-yellow-500/20 shadow-[0_0_10px_rgba(234,179,8,0.1)]">
-              <Trophy size={14} className="text-yellow-500" />
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/10 rounded-full border border-yellow-500/20">
+              < Trophy size={14} className="text-yellow-500" />
               <span className="text-xs font-bold text-yellow-500">{stats.wins} WINS</span>
             </div>
 
-            <button 
-              onClick={handleLogout}
-              className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
-              title="Changer de compte"
-            >
+            <button onClick={handleLogout} className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all">
               <LogOut size={18} />
             </button>
           </div>
@@ -126,7 +120,8 @@ function App() {
           <Lobby onJoin={handleJoin} initialPseudo={myPseudo} />
         ) : (
           <div className="animate-in fade-in zoom-in duration-300">
-            {currentGame === "morpion" ? (
+            {/* CORRECTION ICI : "tictactoe" au lieu de "Tictactoe" pour matcher ton Lobby */}
+            {currentGame === "tictactoe" ? (
               <Tictactoe gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
             ) : (
               <Shifumi gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
