@@ -1,20 +1,20 @@
-import { useState, useEffect } from 'react';
 import { Trophy, Skull } from 'lucide-react';
 
-function Classement({ currentPseudo, socket }) {
-  const [players, setPlayers] = useState([]);
+function Classement({ leaderboard, currentPseudo }) {
+  // Agréger tous jeux confondus
+  const globalRanking = Object.values(
+    leaderboard.reduce((acc, entry) => {
+      if (!acc[entry.pseudo]) {
+        acc[entry.pseudo] = { pseudo: entry.pseudo, wins: 0, losses: 0 };
+      }
+      acc[entry.pseudo].wins += entry.wins;
+      acc[entry.pseudo].losses += entry.losses;
+      return acc;
+    }, {})
+  );
 
-  useEffect(() => {
-    socket.emit('get_leaderboard');
-
-    const handleUpdate = (data) => setPlayers(data);
-    socket.on('leaderboard_update', handleUpdate);
-
-    return () => socket.off('leaderboard_update', handleUpdate);
-  }, []);
-
-  const winnersRanking = [...players].sort((a, b) => b.wins - a.wins);
-  const losersRanking = [...players].sort((a, b) => b.losses - a.losses);
+  const winnersRanking = [...globalRanking].sort((a, b) => b.wins - a.wins);
+  const losersRanking = [...globalRanking].sort((a, b) => b.losses - a.losses);
 
   const RankingTable = ({ title, icon, data, statKey, color }) => (
     <div className="flex-1 min-w-[280px] p-6 bg-slate-900/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl">
@@ -33,7 +33,7 @@ function Classement({ currentPseudo, socket }) {
             <div
               key={player.pseudo}
               className={`flex items-center justify-between p-3 rounded-xl transition-all ${
-                player.pseudo === currentPseudo?.toLowerCase()
+                player.pseudo === currentPseudo
                   ? `${color.highlight} border ${color.border}`
                   : 'bg-slate-800/40 border border-transparent hover:border-white/5'
               }`}

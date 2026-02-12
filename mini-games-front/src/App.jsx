@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 import { Trophy, User, Gamepad2, LogOut, Medal, Skull } from 'lucide-react';
 import Lobby from './components/Lobby';
@@ -15,58 +15,26 @@ function App() {
   const [gameState, setGameState] = useState(null);
   const [myPseudo, setMyPseudo] = useState("");
   const [currentGame, setCurrentGame] = useState("");
-  const [stats, setStats] = useState({ wins: 0, losses: 0 });
+  const [leaderboard, setLeaderboard] = useState([]);
   const [showClassement, setShowClassement] = useState(false);
   const [messages, setMessages] = useState([]);
-  const processedGameRef = useRef(null);
 
   useEffect(() => {
     const savedPseudo = localStorage.getItem("player_pseudo");
     if (savedPseudo) {
       setMyPseudo(savedPseudo);
-      const savedStats = localStorage.getItem(`stats_${savedPseudo.toLowerCase()}`);
-      if (savedStats) {
-        const s = JSON.parse(savedStats);
-        setStats(s);
-        socket.emit('sync_stats', { pseudo: savedPseudo, ...s });
-      }
     }
 
+    socket.on("connect", () => {
+      socket.emit("get_leaderboard");
+    });
+
     socket.on("update_ui", (state) => {
-      setGameState((prevState) => {
-        const gameId = `${state.roomName}_${state.status}`;
+      setGameState(state);
+    });
 
-        if (state.status === 'finished' && prevState?.status !== 'finished' && state.lastResult !== 'draw' && processedGameRef.current !== gameId) {
-          processedGameRef.current = gameId;
-          
-          let iWon = false;
-          if (state.gameType === 'tictactoe') {
-            const myIndex = state.players.findIndex(p => p.id === socket.id);
-            const mySymbol = myIndex === 0 ? 'X' : 'O';
-            iWon = state.lastResult === mySymbol;
-          } else {
-            iWon = state.lastResult === socket.id;
-          }
-
-          setStats(prev => {
-            const newStats = iWon
-              ? { wins: prev.wins + 1, losses: prev.losses }
-              : { wins: prev.wins, losses: prev.losses + 1 };
-            
-            const currentP = localStorage.getItem("player_pseudo");
-            if (currentP) {
-              localStorage.setItem(`stats_${currentP.toLowerCase()}`, JSON.stringify(newStats));
-            }
-            return newStats;
-          });
-        }
-
-        if (state.status === 'waiting') {
-          processedGameRef.current = null;
-        }
-
-        return state;
-      });
+    socket.on("leaderboard_update", (data) => {
+      setLeaderboard(data);
     });
 
     socket.on("security_error", (msg) => {
@@ -77,7 +45,9 @@ function App() {
     });
 
     return () => {
+      socket.off("connect");
       socket.off("update_ui");
+      socket.off("leaderboard_update");
       socket.off("security_error");
     };
   }, []);
@@ -89,13 +59,12 @@ function App() {
     return () => socket.off("message");
   }, []);
 
+  const myWins = leaderboard.filter(p => p.pseudo === myPseudo).reduce((sum, p) => sum + p.wins, 0);
+  const myLosses = leaderboard.filter(p => p.pseudo === myPseudo).reduce((sum, p) => sum + p.losses, 0);
+
   const savePseudo = (pseudo) => {
     localStorage.setItem("player_pseudo", pseudo);
     setMyPseudo(pseudo);
-    const savedStats = localStorage.getItem(`stats_${pseudo.toLowerCase()}`);
-    const s = savedStats ? JSON.parse(savedStats) : { wins: 0, losses: 0 };
-    setStats(s);
-    socket.emit('sync_stats', { pseudo, ...s });
   };
 
   const handleJoin = (pseudo, room, gameType) => {
@@ -120,7 +89,7 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen bg-[#020617] font-gaming text-slate-200 overflow-hidden">
-      
+
       {/* BACKGROUND DECORATIF */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-[#020617]">
         <div className="absolute inset-0 opacity-60"
@@ -146,11 +115,11 @@ function App() {
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/10 rounded-full border border-yellow-500/20">
               <Trophy size={14} className="text-yellow-500" />
-              <span className="text-xs font-bold text-yellow-500">{stats.wins}</span>
+              <span className="text-xs font-bold text-yellow-500">{myWins}</span>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 rounded-full border border-red-500/20">
               <Skull size={14} className="text-red-400" />
-              <span className="text-xs font-bold text-red-400">{stats.losses}</span>
+              <span className="text-xs font-bold text-red-400">{myLosses}</span>
             </div>
             <button onClick={() => { setShowClassement(prev => !prev); setIsJoined(false); }} className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 rounded-full border border-purple-500/20 hover:bg-purple-500/20 transition-all cursor-pointer">
               <Medal size={14} className="text-purple-400" />
@@ -165,14 +134,14 @@ function App() {
 
       {/* ZONE PRINCIPALE SPLIT : JEU + CHAT */}
       <div className="flex flex-1 overflow-hidden">
-        
+
         {/* COLONNE GAUCHE : LOBBY OU JEU */}
         <main className="flex-1 overflow-y-auto relative z-10 custom-scrollbar">
           <div className="p-6 h-full">
             {showClassement ? (
-              <div className="max-w-4xl mx-auto"><Classement currentPseudo={myPseudo} socket={socket} /></div>
+              <div className="max-w-4xl mx-auto"><Classement leaderboard={leaderboard} currentPseudo={myPseudo} /></div>
             ) : !isJoined ? (
-              <div className="max-w-4xl mx-auto"><Lobby onJoin={handleJoin} initialPseudo={myPseudo} /></div>
+              <div className="max-w-4xl mx-auto"><Lobby onJoin={handleJoin} initialPseudo={myPseudo} leaderboard={leaderboard} /></div>
             ) : (
               <div className="w-full h-full max-w-5xl mx-auto">
                 {gameState ? (
@@ -193,13 +162,13 @@ function App() {
           </div>
         </main>
 
-        {/* COLONNE DROITE : CHAT (Prend toute la hauteur restante sous le header) */}
+        {/* COLONNE DROITE : CHAT */}
         {isJoined && !showClassement && (
           <aside className="w-80 border-l border-white/5 bg-slate-950/40 backdrop-blur-md hidden lg:flex flex-col shrink-0 animate-in slide-in-from-right duration-500">
-            <Chat 
-              messages={messages} 
-              socket={socket} 
-              socketId={socket.id} 
+            <Chat
+              messages={messages}
+              socket={socket}
+              socketId={socket.id}
             />
           </aside>
         )}

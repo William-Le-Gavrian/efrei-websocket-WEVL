@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { Trophy } from 'lucide-react';
 
-function Lobby({ onJoin, initialPseudo }) {
-  const [room, setRoom] = useState("Mercure"); 
+function Lobby({ onJoin, initialPseudo, leaderboard }) {
+  const [room, setRoom] = useState("Mercure");
   const [gameType, setGameType] = useState("tictactoe");
-  const [stats, setStats] = useState({ wins: 0, losses: 0 });
+
+  const gameLeaderboard = leaderboard.filter(p => p.gameType === gameType);
+  const myWins = gameLeaderboard.find(p => p.pseudo === initialPseudo)?.wins || 0;
+  const myLosses = gameLeaderboard.find(p => p.pseudo === initialPseudo)?.losses || 0;
 
   const rooms = [
     "Mercure", "Vénus", "Terre",
@@ -11,32 +15,22 @@ function Lobby({ onJoin, initialPseudo }) {
     "Uranus", "Neptune", "Pluto is a planet !!"
   ];
 
-  useEffect(() => {
-    if (initialPseudo) {
-      const savedData = localStorage.getItem(`stats_${initialPseudo.toLowerCase()}`);
-      if (savedData) {
-        const parsed = JSON.parse(savedData);
-        setStats({ wins: parsed.wins || 0, losses: parsed.losses || 0 });
-      }
-    }
-  }, [initialPseudo]);
-
   return (
     <div className="flex items-center justify-center p-4 font-gaming">
       <div className="w-full max-w-md p-8 bg-slate-900/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl">
-        
-        {/* Titre et Stats (inchangés) */}
+
+        {/* Titre et Stats */}
         <div className="mb-8 text-center">
             <h1 className="text-4xl font-black text-white tracking-tighter uppercase">
                 {gameType === "tictactoe" ? "TIC TAC TOE" : "SHI-FU-MI"}
             </h1>
             <p className="text-blue-500 font-bold text-xs mt-2 italic tracking-widest">
-                JOUEUR : {initialPseudo.toUpperCase()} | {stats.wins}W - {stats.losses}L
+                JOUEUR : {initialPseudo.toUpperCase()} | {myWins}W - {myLosses}L
             </p>
         </div>
 
         <form onSubmit={(e) => { e.preventDefault(); onJoin(initialPseudo, room, gameType); }} className="space-y-6">
-          
+
           {/* SÉLECTEUR DE JEU */}
           <div className="flex p-1 bg-slate-800/50 rounded-2xl gap-1 border border-white/5">
             <button type="button" onClick={() => setGameType("tictactoe")}
@@ -53,7 +47,7 @@ function Lobby({ onJoin, initialPseudo }) {
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-500 uppercase ml-1 tracking-widest">Sélectionner une Planète</label>
             <div className="relative">
-              <select 
+              <select
                 value={room}
                 onChange={(e) => setRoom(e.target.value)}
                 className="w-full p-4 bg-slate-800 text-white rounded-2xl border-2 border-transparent focus:border-blue-500 focus:outline-none transition-all appearance-none cursor-pointer font-bold"
@@ -64,7 +58,6 @@ function Lobby({ onJoin, initialPseudo }) {
                   </option>
                 ))}
               </select>
-              {/* Petite flèche personnalisée */}
               <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500">
                 ▼
               </div>
@@ -75,6 +68,36 @@ function Lobby({ onJoin, initialPseudo }) {
             Atterissage sur la Planète
           </button>
         </form>
+
+        {/* CLASSEMENT PAR JEU */}
+        {gameLeaderboard.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Trophy size={16} className="text-yellow-500" />
+              <h2 className="text-sm font-black uppercase tracking-widest text-yellow-500">Classement {gameType === 'tictactoe' ? 'Tic Tac Toe' : 'Shifumi'}</h2>
+            </div>
+            <div className="space-y-2">
+              {gameLeaderboard.map((player, index) => (
+                <div key={player.pseudo}
+                  className={`flex items-center justify-between p-3 rounded-xl border ${
+                    player.pseudo === initialPseudo
+                      ? 'bg-blue-600/20 border-blue-500/30'
+                      : 'bg-slate-800/50 border-white/5'
+                  }`}>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs font-black w-6 text-center ${
+                      index === 0 ? 'text-yellow-500' : index === 1 ? 'text-slate-300' : index === 2 ? 'text-orange-400' : 'text-slate-500'
+                    }`}>
+                      #{index + 1}
+                    </span>
+                    <span className="text-sm font-bold text-white">{player.pseudo}</span>
+                  </div>
+                  <span className="text-xs font-bold text-slate-400">{player.wins} VICTOIRE{player.wins > 1 ? 'S' : ''}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

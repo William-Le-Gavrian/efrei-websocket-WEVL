@@ -25,11 +25,12 @@ mini-games-front/
 ├── src/
 │   ├── main.jsx               # Point d'entrée Vite
 │   ├── App.jsx                 # Composant principal, routage des vues
-│   ├── App.css                 # Styles globaux
 │   ├── index.css               # Styles de base (Tailwind)
 │   └── components/
 │       ├── PseudoEntry.jsx     # Saisie du pseudo
-│       ├── Lobby.jsx           # Sélection de salle et de jeu
+│       ├── Lobby.jsx           # Sélection de salle/jeu + classement par jeu
+│       ├── Classement.jsx      # Classement général (wins + losses, tous jeux)
+│       ├── Chat.jsx            # Chat en jeu
 │       ├── Tictactoe.jsx       # Interface du morpion
 │       └── Shifumi.jsx         # Interface du shi-fu-mi
 └── package.json
@@ -37,4 +38,4 @@ mini-games-front/
 
 Le front communique avec le serveur via Socket.io. L'état du jeu est entièrement géré côté serveur (source de vérité). L'interface réagit aux événements `update_ui` et met à jour l'affichage via les hooks React (`useEffect`).
 
-Les stats (pseudo, victoires, défaites) sont stockées en `localStorage` et synchronisées avec le serveur à chaque connexion.
+Le classement (victoires et défaites) est alimenté par MongoDB via Socket.io (`get_leaderboard` / `leaderboard_update`). Le Lobby affiche un classement filtré par jeu sélectionné, et une page Classement Général est accessible depuis le header.

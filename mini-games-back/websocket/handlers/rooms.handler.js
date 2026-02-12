@@ -1,48 +1,14 @@
 import { checkWin } from '../../services/tictactoe.js';
 import { getWinner } from '../../services/shifumi.js';
+import { saveGameResult, getLeaderboard } from '../../services/mongodb.js';
 
 const games = new Map();
-const leaderboard = new Map();
-
-function updateLeaderboard(winnerPseudo, loserPseudo, io) {
-    if (!winnerPseudo || !loserPseudo) return;
-    
-    const wKey = winnerPseudo.toLowerCase();
-    const lKey = loserPseudo.toLowerCase();
-    
-    if (!leaderboard.has(wKey)) leaderboard.set(wKey, { wins: 0, losses: 0 });
-    if (!leaderboard.has(lKey)) leaderboard.set(lKey, { wins: 0, losses: 0 });
-    
-    leaderboard.get(wKey).wins++;
-    leaderboard.get(lKey).losses++;
-    
-    io.emit("leaderboard_update", getLeaderboardData());
-}
-
-function getLeaderboardData() {
-    return Array.from(leaderboard.entries()).map(([pseudo, stats]) => ({
-        pseudo,
-        wins: stats.wins,
-        losses: stats.losses,
-    }));
-}
 
 export const roomHandlers = (io, socket) => {
 
-    socket.on('get_leaderboard', () => {
-        socket.emit('leaderboard_update', getLeaderboardData());
-    });
-
-    socket.on('sync_stats', ({ pseudo, wins, losses }) => {
-        if (!pseudo) return;
-        const key = pseudo.toLowerCase();
-        if (!leaderboard.has(key)) {
-            leaderboard.set(key, { wins: wins || 0, losses: losses || 0 });
-        } else {
-            const current = leaderboard.get(key);
-            current.wins = Math.max(current.wins, wins || 0);
-            current.losses = Math.max(current.losses, losses || 0);
-        }
+    socket.on('get_leaderboard', async () => {
+        const leaderboard = await getLeaderboard();
+        socket.emit('leaderboard_update', leaderboard);
     });
 
     // ÉVÉNEMENT : REJOINDRE UNE SALLE
@@ -83,7 +49,7 @@ export const roomHandlers = (io, socket) => {
 
         if (!game.players.find(p => p.id === socket.id)) {
             game.players.push({ id: socket.id, pseudo: pseudo });
-            
+
             if (game.gameType === 'tictactoe' && game.players.length === 1) {
                 game.scores = { X: 0, O: 0 };
             }
@@ -170,7 +136,7 @@ export const roomHandlers = (io, socket) => {
 };
 
 // --- LOGIQUE INTERNE TICTACTOE ---
-function handleTictactoe(game, index, socketId, room, io) {
+async function handleTictactoe(game, index, socketId, room, io) {
     const playerIndex = game.players.findIndex(p => p.id === socketId);
     if (playerIndex !== game.turn || game.board[index] !== null) return;
 
@@ -192,7 +158,14 @@ function handleTictactoe(game, index, socketId, room, io) {
                 const winnerIndex = result === 'X' ? 0 : 1;
                 const loserIndex = result === 'X' ? 1 : 0;
                 if(game.players[winnerIndex] && game.players[loserIndex]) {
-                    updateLeaderboard(game.players[winnerIndex].pseudo, game.players[loserIndex].pseudo, io);
+                    await saveGameResult({
+                        winner: game.players[winnerIndex].pseudo,
+                        loser: game.players[loserIndex].pseudo,
+                        gameType: 'tictactoe',
+                        scores: { ...game.scores }
+                    });
+                    const leaderboard = await getLeaderboard();
+                    io.emit('leaderboard_update', leaderboard);
                 }
             }
         }
@@ -204,7 +177,7 @@ function handleTictactoe(game, index, socketId, room, io) {
 }
 
 // --- LOGIQUE INTERNE SHIFUMI ---
-function handleShifumi(game, choice, socketId, room, io) {
+async function handleShifumi(game, choice, socketId, room, io) {
     game.choices[socketId] = choice;
 
     if (Object.keys(game.choices).length === 2) {
@@ -230,7 +203,14 @@ function handleShifumi(game, choice, socketId, room, io) {
             const winner = game.players.find(p => p.id === winnerId);
             const loser = game.players.find(p => p.id !== winnerId);
             if(winner && loser) {
-                updateLeaderboard(winner.pseudo, loser.pseudo, io);
+                await saveGameResult({
+                    winner: winner.pseudo,
+                    loser: loser.pseudo,
+                    gameType: 'shifumi',
+                    scores: { ...game.scores }
+                });
+                const leaderboard = await getLeaderboard();
+                io.emit('leaderboard_update', leaderboard);
             }
         } else {
             game.choices = {};
