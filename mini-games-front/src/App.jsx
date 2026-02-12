@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import { Trophy, User, Gamepad2, LogOut, Medal, Skull } from 'lucide-react';
 import Lobby from './components/Lobby';
@@ -18,6 +18,8 @@ function App() {
   const [stats, setStats] = useState({ wins: 0, losses: 0 });
   const [showClassement, setShowClassement] = useState(false);
   const [messages, setMessages] = useState([]);
+  const processedGameRef = useRef(null);
+
 
   useEffect(() => {
     const savedPseudo = localStorage.getItem("player_pseudo");
@@ -25,8 +27,7 @@ function App() {
       setMyPseudo(savedPseudo);
       const savedStats = localStorage.getItem(`stats_${savedPseudo.toLowerCase()}`);
       if (savedStats) {
-        const parsed = JSON.parse(savedStats);
-        const s = { wins: parsed.wins || 0, losses: parsed.losses || 0 };
+        const s = JSON.parse(savedStats);
         setStats(s);
         socket.emit('sync_stats', { pseudo: savedPseudo, ...s });
       }
@@ -104,9 +105,16 @@ function App() {
   }, [])
 
   const savePseudo = (pseudo) => {
-    localStorage.setItem("player_pseudo", pseudo);
-    setMyPseudo(pseudo);
+      localStorage.setItem("player_pseudo", pseudo);
+      setMyPseudo(pseudo);
+
+      const savedStats = localStorage.getItem(`stats_${pseudo.toLowerCase()}`);
+      const s = savedStats ? JSON.parse(savedStats) : { wins: 0, losses: 0 };
+      
+      setStats(s);
+      socket.emit('sync_stats', { pseudo, ...s });
   };
+
 
   const handleJoin = (pseudo, room, gameType) => {
     setCurrentGame(gameType);
@@ -143,7 +151,6 @@ function App() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] h-[1100px] border border-white/10 rounded-full opacity-50" />
       </div>
 
-      {/* HEADER GAMING */}
       <header className="sticky top-0 z-50 border-b border-white/5 bg-slate-950/60 backdrop-blur-xl p-4">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.location.reload()}>
@@ -181,7 +188,6 @@ function App() {
         </div>
       </header>
 
-      {/* CONTENU PRINCIPAL */}
       <main className="relative z-10 py-10 px-4">
         {showClassement ? (
           <Classement currentPseudo={myPseudo} socket={socket} />
