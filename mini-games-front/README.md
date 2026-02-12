@@ -1,88 +1,40 @@
-# 🚀 WEVL — Arena de Mini-Jeux Spatiale
+# 🚀 WEVL — Arène de Mini-Jeux Spatiale - FRONT
 
-**WEVL** est une plateforme de jeux multijoueurs en temps réel basée sur les technologies **WebSockets**. Affrontez vos adversaires dans un environnement immersif inspiré du système solaire, où chaque salle de jeu est une planète à conquérir.
+Client React pour la plateforme WEVL.
 
----
+## Stack
 
-## ✨ Fonctionnalités
+- **React** (Vite)
+- **Tailwind CSS**
+- **Lucide React** (icônes)
+- **Socket.io-client**
 
-* **Multijoueur en temps réel** : Utilisation de `Socket.io` pour une synchronisation instantanée des mouvements (latence minimale).
-* **Système de Salles (Dojos Spatiaux)** : 9 salles prédéfinies basées sur les planètes (Mercure, Mars, Jupiter, jusqu'à la station Pluton).
-* **Gestion des Lobby & Sécurité** : 
-    * Vérification de la disponibilité des salles côté serveur.
-    * **Limitation stricte à 2 joueurs** : Un système de verrouillage empêche toute intrusion dans une partie en cours.
-* **Design "Triple A"** : 
-    * Interface en **Glassmorphism** (transparence, flous directionnels et bordures cristallines).
-    * Arrière-plan dynamique simulant une nébuleuse avec planètes et étoiles scintillantes.
-    * Typographie **Rajdhani** typée gaming/e-sport.
-* **Persistance locale** : Sauvegarde automatique du pseudo et du compteur de victoires via le `localStorage`.
+## Installation
 
----
+```bash
+npm install
+npm run dev
+```
 
-## 🛠 Stack Technique
+Le client démarre sur **http://localhost:5173**.
 
-### Front-end
-* **React.js** (Vite)
-* **Tailwind CSS** : Utilisation intensive d'utilitaires personnalisés pour le design spatial et les animations (Shimmer, Pulse, Glow).
-* **Lucide React** : Iconographie moderne et minimaliste.
-* **Socket.io-client** : Gestion de la communication bidirectionnelle.
+## Architecture
 
----
+```
+mini-games-front/
+├── src/
+│   ├── main.jsx               # Point d'entrée Vite
+│   ├── App.jsx                 # Composant principal, routage des vues
+│   ├── App.css                 # Styles globaux
+│   ├── index.css               # Styles de base (Tailwind)
+│   └── components/
+│       ├── PseudoEntry.jsx     # Saisie du pseudo
+│       ├── Lobby.jsx           # Sélection de salle et de jeu
+│       ├── Tictactoe.jsx       # Interface du morpion
+│       └── Shifumi.jsx         # Interface du shi-fu-mi
+└── package.json
+```
 
-## 🎮 Jeux Disponibles
+Le front communique avec le serveur via Socket.io. L'état du jeu est entièrement géré côté serveur (source de vérité). L'interface réagit aux événements `update_ui` et met à jour l'affichage via les hooks React (`useEffect`).
 
-### 1. Tic-Tac-Toe (Morpion)
-Revisité avec une esthétique Cyber-Néon.
-* Symboles stylisés : `✕` (cosmonaute X) et `◯` (cosmonaute O).
-* Indicateur de tour dynamique avec halo lumineux.
-
-### 2. Shi-Fu-Mi (Pierre-Feuille-Ciseaux)
-Un duel psychologique avec des visuels à haute intensité.
-* Reveal dramatique des choix des joueurs.
-* Animations de "Shake" et effets de particules lors du résultat.
-
-
-
----
-
-## 🧠 Architecture & Communication
-
-Le projet repose sur une architecture événementielle robuste. Le serveur agit comme une "Source de Vérité" (SSOT) :
-
-1.  **Phase de Join** : Le serveur vérifie le nombre de clients via `io.sockets.adapter.rooms.get(room)`. Si `size >= 2`, l'accès est refusé.
-2.  **Gestion d'état** : Chaque coup (`make_move`) déclenche une mise à jour de la logique côté serveur, qui renvoie l'état complet à la salle via `update_ui`.
-3.  **Synchronisation** : L'interface réagit immédiatement aux changements d'état grâce aux hooks `useEffect` de React.
-
-
-
----
-
-## ⚙️ Installation
-
-### Prérequis
-* Node.js (v16 ou supérieur)
-* npm ou yarn
-
-### Lancement
-1.  **Clonage du projet** :
-    ```bash
-    git clone https://github.com/William-Le-Gavrian/efrei-websocket-WEVL.git
-    ```
-2.  **Installation et lancement du serveur** :
-    ```bash
-    cd mini-games-back
-    npm install
-    npm run dev
-    ```
-
----
-
-## 💅 Identité Visuelle
-
-* **Dark Mode** : Fond Deep Space (`#020617`).
-* **Accents** : Bleu Électrique (Joueur 1), Rose Néon (Joueur 2), Jaune Solaire (Highlight).
-* **Effets** : Utilisation de `backdrop-blur-xl` pour simuler des interfaces de cockpit spatial.
-
----
-
-**Projet développé dans le cadre du module Webhook/Websocket - EFREI 2026.**
+Les stats (pseudo, victoires, défaites) sont stockées en `localStorage` et synchronisées avec le serveur à chaque connexion.
