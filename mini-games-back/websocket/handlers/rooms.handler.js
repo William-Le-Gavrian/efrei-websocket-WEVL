@@ -1,22 +1,28 @@
 import { checkWin } from '../../services/tictactoe.js';
 import { getWinner } from '../../services/shifumi.js';
+import mongoose from 'mongoose';
+import Player from '../models/Player.js';
 
 const games = new Map();
 const leaderboard = new Map();
 
-function updateLeaderboard(winnerPseudo, loserPseudo, io) {
+async function updateLeaderboard(winnerPseudo, loserPseudo, io) {
     if (!winnerPseudo || !loserPseudo) return;
-    
-    const wKey = winnerPseudo.toLowerCase();
-    const lKey = loserPseudo.toLowerCase();
-    
-    if (!leaderboard.has(wKey)) leaderboard.set(wKey, { wins: 0, losses: 0 });
-    if (!leaderboard.has(lKey)) leaderboard.set(lKey, { wins: 0, losses: 0 });
-    
-    leaderboard.get(wKey).wins++;
-    leaderboard.get(lKey).losses++;
-    
-    io.emit("leaderboard_update", getLeaderboardData());
+
+    await Player.findOneAndUpdate(
+        { pseudo: winnerPseudo.toLowerCase() },
+        { $inc: { wins: 1 } },
+        { upsert: true, new: true }
+    );
+
+    await Player.findOneAndUpdate(
+        { pseudo: loserPseudo.toLowerCase() },
+        { $inc: { losses: 1 } },
+        { upsert: true, new: true }
+    );
+
+    const fullLeaderboard = await Player.find().sort({ wins: -1 }).limit(10);
+    io.emit("leaderboard_update", fullLeaderboard);
 }
 
 function getLeaderboardData() {
@@ -33,16 +39,16 @@ export const roomHandlers = (io, socket) => {
         socket.emit('leaderboard_update', getLeaderboardData());
     });
 
-    socket.on('sync_stats', ({ pseudo, wins, losses }) => {
+    socket.on('sync_stats', async ({ pseudo }) => {
         if (!pseudo) return;
         const key = pseudo.toLowerCase();
-        if (!leaderboard.has(key)) {
-            leaderboard.set(key, { wins: wins || 0, losses: losses || 0 });
-        } else {
-            const current = leaderboard.get(key);
-            current.wins = Math.max(current.wins, wins || 0);
-            current.losses = Math.max(current.losses, losses || 0);
+        
+        let player = await Player.findOne({ pseudo: key });
+        if (!player) {
+            player = await Player.create({ pseudo: key, wins: 0, losses: 0 });
         }
+        
+        socket.emit('update_local_stats', { wins: player.wins, losses: player.losses });
     });
 
     socket.on('join_game', ({ room, pseudo, gameType }) => {
