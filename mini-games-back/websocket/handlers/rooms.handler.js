@@ -26,6 +26,7 @@ export const roomHandlers = (io, socket) => {
                 players: [],
                 board: Array(9).fill(null),
                 turn: 0,
+                scores: { X: 0, O: 0 },
                 choices: {},
                 lastResult: null
             });
@@ -33,10 +34,15 @@ export const roomHandlers = (io, socket) => {
 
         const game = games.get(room);
         
-        game.players.push({ id: socket.id, pseudo: pseudo });
+        if (!game.players.find(p => p.id === socket.id)) {
+            game.players.push({ id: socket.id, pseudo: pseudo });
+        }
 
         if (game.players.length === 2) {
             game.status = 'playing';
+            if (game.gameType === 'shifumi') {
+                game.scores = { [game.players[0].id]: 0, [game.players[1].id]: 0 };
+            }
         }
 
         io.to(room).emit("update_ui", game);
@@ -67,19 +73,29 @@ export const roomHandlers = (io, socket) => {
     });
 };
 
-// --- LOGIQUE INTERNE TICTACTOE ---
+// --- LOGIQUE INTERNE TICTACTOE (Best of 5) ---
 function handleTictactoe(game, index, socketId, room, io) {
     const playerIndex = game.players.findIndex(p => p.id === socketId);
     
-    if (playerIndex !== game.turn) return;
-    if (game.board[index] !== null) return;
+    if (playerIndex !== game.turn || game.board[index] !== null) return;
 
-    game.board[index] = game.turn === 0 ? 'X' : 'O';
+    const symbol = game.turn === 0 ? 'X' : 'O';
+    game.board[index] = symbol;
     
     const result = checkWin(game.board);
+
     if (result) {
-        game.status = 'finished';
-        game.lastResult = result;
+        if (result === 'draw') {
+            game.board = Array(9).fill(null);
+        } else {
+            game.scores[result]++;
+            game.board = Array(9).fill(null);
+            
+            if (game.scores[result] === 3) {
+                game.status = 'finished';
+                game.lastResult = result; 
+            }
+        }
     } else {
         game.turn = game.turn === 0 ? 1 : 0;
     }
@@ -87,22 +103,34 @@ function handleTictactoe(game, index, socketId, room, io) {
     io.to(room).emit("update_ui", game);
 }
 
-// --- LOGIQUE INTERNE SHIFUMI ---
+// --- LOGIQUE INTERNE SHIFUMI (Best of 5) ---
 function handleShifumi(game, choice, socketId, room, io) {
     game.choices[socketId] = choice;
 
-    const playerIds = game.players.map(p => p.id);
-    
     if (Object.keys(game.choices).length === 2) {
-        const result = getWinner(game.choices[playerIds[0]], game.choices[playerIds[1]]);
-        game.status = 'finished';
-        
-        if (result === 'draw') {
-            game.lastResult = 'draw';
+        const p1Id = game.players[0].id;
+        const p2Id = game.players[1].id;
+        const c1 = game.choices[p1Id];
+        const c2 = game.choices[p2Id];
+
+        if (c1 !== c2) {
+            const winsAgainst = { pierre: 'ciseaux', feuille: 'pierre', ciseaux: 'feuille' };
+            if (winsAgainst[c1] === c2) {
+                game.scores[p1Id]++;
+            } else {
+                game.scores[p2Id]++;
+            }
+        }
+
+        const winnerId = Object.keys(game.scores).find(id => game.scores[id] === 3);
+
+        if (winnerId) {
+            game.status = 'finished';
+            game.lastResult = winnerId;
         } else {
-            game.lastResult = result === 'playerA' ? playerIds[0] : playerIds[1];
+            game.choices = {};
         }
     }
-    
+
     io.to(room).emit("update_ui", game);
 }
