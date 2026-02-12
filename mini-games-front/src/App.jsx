@@ -24,8 +24,7 @@ function App() {
       setMyPseudo(savedPseudo);
       const savedStats = localStorage.getItem(`stats_${savedPseudo.toLowerCase()}`);
       if (savedStats) {
-        const parsed = JSON.parse(savedStats);
-        const s = { wins: parsed.wins || 0, losses: parsed.losses || 0 };
+        const s = JSON.parse(savedStats);
         setStats(s);
         socket.emit('sync_stats', { pseudo: savedPseudo, ...s });
       }
@@ -52,9 +51,9 @@ function App() {
               ? { wins: prev.wins + 1, losses: prev.losses }
               : { wins: prev.wins, losses: prev.losses + 1 };
             
-            const currentPseudo = localStorage.getItem("player_pseudo");
-            if (currentPseudo) {
-              localStorage.setItem(`stats_${currentPseudo.toLowerCase()}`, JSON.stringify(newStats));
+            const currentP = localStorage.getItem("player_pseudo");
+            if (currentP) {
+              localStorage.setItem(`stats_${currentP.toLowerCase()}`, JSON.stringify(newStats));
             }
             return newStats;
           });
@@ -77,9 +76,16 @@ function App() {
   }, []);
 
   const savePseudo = (pseudo) => {
-    localStorage.setItem("player_pseudo", pseudo);
-    setMyPseudo(pseudo);
+      localStorage.setItem("player_pseudo", pseudo);
+      setMyPseudo(pseudo);
+
+      const savedStats = localStorage.getItem(`stats_${pseudo.toLowerCase()}`);
+      const s = savedStats ? JSON.parse(savedStats) : { wins: 0, losses: 0 };
+      
+      setStats(s);
+      socket.emit('sync_stats', { pseudo, ...s });
   };
+
 
   const handleJoin = (pseudo, room, gameType) => {
     setCurrentGame(gameType);
@@ -102,6 +108,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#020617] font-gaming text-slate-200 selection:bg-blue-500/30 overflow-x-hidden">
+      {/* ... (Background, Header avec {stats.wins} et {stats.losses}, Main) */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-[#020617]">
         <div className="absolute inset-0 opacity-60" 
           style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '50px 50px' }}
