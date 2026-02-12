@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 import { Trophy, User, Gamepad2, LogOut, Medal, Skull } from 'lucide-react';
 import Lobby from './components/Lobby';
@@ -7,6 +7,7 @@ import Shifumi from './components/Shifumi';
 import Chat from "./components/Chat";
 import PseudoEntry from './components/PseudoEntry';
 import Classement from './components/Classement';
+import Hangman from "./components/Hangman.jsx";
 
 const socket = io("http://localhost:3001");
 
@@ -18,7 +19,6 @@ function App() {
   const [stats, setStats] = useState({ wins: 0, losses: 0 });
   const [showClassement, setShowClassement] = useState(false);
   const [messages, setMessages] = useState([]);
-  const processedGameRef = useRef(null);
 
 
   useEffect(() => {
@@ -42,7 +42,7 @@ function App() {
           const myIndex = state.players.findIndex(p => p.id === socket.id);
           const mySymbol = myIndex === 0 ? 'X' : 'O';
           iWon = state.lastResult === mySymbol;
-        } else {
+        } else if (state.gameType === 'shifumi') {
           iWon = state.lastResult === socket.id;
         }
 
@@ -57,36 +57,7 @@ function App() {
           return newStats;
         });
       }
-      setGameState((prevState) => {
-        if (state.status === 'finished' && prevState?.status !== 'finished') {
-          let iWon = false;
 
-          if (state.gameType === 'shifumi' && state.lastResult === socket.id) {
-            iWon = true;
-          }
-
-          if (state.gameType === 'tictactoe') {
-            const myIndex = state.players.findIndex(p => p.id === socket.id);
-            const mySymbol = myIndex === 0 ? 'X' : 'O';
-
-            if (state.lastResult === mySymbol) {
-              iWon = true;
-            }
-          }
-
-          if (iWon) {
-            setStats(prev => {
-              const newStats = { wins: prev.wins + 1 };
-              const currentPseudo = localStorage.getItem("player_pseudo");
-              if (currentPseudo) {
-                localStorage.setItem(`stats_${currentPseudo.toLowerCase()}`, JSON.stringify(newStats));
-              }
-              return newStats;
-            });
-          }
-        }
-        return state;
-      });
     });
 
     socket.on("security_error", (msg) => alert(msg));
@@ -196,11 +167,14 @@ function App() {
         ) : (
           <div className="flex">
             <div className="animate-in fade-in zoom-in duration-300 flex-2">
-              {/* CORRECTION ICI : "tictactoe" au lieu de "Tictactoe" pour matcher ton Lobby */}
-              {currentGame === "tictactoe" ? (
-                <Tictactoe gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
-              ) : (
-                <Shifumi gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
+              {currentGame === "tictactoe" && (
+                  <Tictactoe gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
+              )}
+              {currentGame === "shifumi" && (
+                  <Shifumi gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
+              )}
+              {currentGame === "hangman" && (
+                  <Hangman gameState={gameState} socket={socket} />
               )}
             </div>
             <Chat

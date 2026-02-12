@@ -1,5 +1,6 @@
 import { checkWin } from '../../services/tictactoe.js';
 import { getWinner } from '../../services/shifumi.js';
+import { setWord, guessLetter, guessWord } from "../../services/hangman.js";
 
 const games = new Map();
 const leaderboard = new Map();
@@ -59,29 +60,43 @@ export const roomHandlers = (io, socket) => {
         console.log(`${pseudo} a rejoint la salle : ${room}`);
 
         if (!games.has(room)) {
-            games.set(room, {
+            let newGame = {
                 roomName: room,
                 gameType: gameType,
                 status: 'waiting',
                 players: [],
-                board: Array(9).fill(null),
-                turn: 0,
-                scores: { X: 0, O: 0 },
-                choices: {},
                 lastResult: null
-            });
+            }
+
+            if('tictactoe' === gameType) {
+                newGame.board = Array(9).fill(null);
+                newGame.scores = { X: 0, O: 0 };
+                newGame.turn = 0;
+            } else if ('shifumi' === gameType) {
+                newGame.choices = {};
+            } else if ('hangman' === gameType) {
+                newGame.word = "";
+                newGame.maskedWord = "";
+                newGame.lettersGuessed = [];
+                newGame.errors = 0;
+                newGame.maxErrors = 10;
+            }
+
+            games.set(room, newGame);
         }
 
         const game = games.get(room);
 
         if (!game.players.find(p => p.id === socket.id)) {
             game.players.push({ id: socket.id, pseudo: pseudo });
-            game.board = Array(9).fill(null);
-            game.turn = 0;
             game.lastResult = null;
 
-            if (game.gameType === 'tictactoe') {
+            if ('tictactoe' === game.gameType) {
                 game.scores = { X: 0, O: 0 };
+                game.board = Array(9).fill(null);
+                game.turn = 0;
+            } else if ('hangman' === game.gameType) {
+
             }
         }
 
@@ -94,8 +109,10 @@ export const roomHandlers = (io, socket) => {
 
         if (game.players.length === 2) {
             game.status = 'playing';
-            if (game.gameType === 'shifumi') {
+            if ('shifumi' === game.gameType) {
                 game.scores = { [game.players[0].id]: 0, [game.players[1].id]: 0 };
+            } else if ('hangman' === game.gameType) {
+                game.status = 'choosing';
             }
         }
 
@@ -107,12 +124,14 @@ export const roomHandlers = (io, socket) => {
         const room = Array.from(socket.rooms).find(r => r !== socket.id);
         const game = games.get(room);
 
-        if (!game || game.status !== 'playing') return;
+        if (!game) return;
 
-        if (game.gameType === 'tictactoe') {
+        if ('tictactoe' === game.gameType) {
             handleTictactoe(game, moveData, socket.id, room, io);
-        } else if (game.gameType === 'shifumi') {
+        } else if ('shifumi' === game.gameType) {
             handleShifumi(game, moveData, socket.id, room, io);
+        } else if ('hangman' === game.gameType ) {
+            handleHangman(game, room, socket.id, io, moveData);
         }
     });
 
@@ -232,5 +251,28 @@ function handleShifumi(game, choice, socketId, room, io) {
         }
     }
 
+    io.to(room).emit("update_ui", game);
+}
+
+function handleHangman(game, room, socketId, io, data) {
+    if ('choosing' === game.status) {
+        if (socketId !== game.players[0].id) {
+            return;
+        }
+        setWord(game, data.value);
+
+    } else if ('playing' === game.status) {
+        if (socketId !== game.players[1].id) {
+            return;
+        }
+
+        if ('letter' === data.type) {
+            guessLetter(game, data.value);
+        }
+
+        if ('word' === data.type) {
+            guessWord(game, data.value);
+        }
+    }
     io.to(room).emit("update_ui", game);
 }

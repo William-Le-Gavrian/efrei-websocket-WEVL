@@ -28,7 +28,11 @@ function Lobby({ onJoin, initialPseudo }) {
         {/* Titre et Stats (inchangés) */}
         <div className="mb-8 text-center">
             <h1 className="text-4xl font-black text-white tracking-tighter uppercase">
-                {gameType === "tictactoe" ? "TIC TAC TOE" : "SHI-FU-MI"}
+              {{
+                tictactoe: "TIC TAC TOE",
+                shifumi: "SHI-FU-MI",
+                hangman: "HANGMAN"
+              }[gameType]}
             </h1>
             <p className="text-blue-500 font-bold text-xs mt-2 italic tracking-widest">
                 JOUEUR : {initialPseudo.toUpperCase()} | {stats.wins}W - {stats.losses}L
@@ -46,6 +50,10 @@ function Lobby({ onJoin, initialPseudo }) {
             <button type="button" onClick={() => setGameType("shifumi")}
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${gameType === 'shifumi' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>
               SHIFUMI
+            </button>
+            <button type="button" onClick={() => setGameType("hangman")}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${gameType === 'hangman' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>
+              HANGMAN
             </button>
           </div>
 
