@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import { Trophy, User, Gamepad2, LogOut, Medal, Skull } from 'lucide-react';
 import Lobby from './components/Lobby';
@@ -16,6 +16,7 @@ function App() {
   const [currentGame, setCurrentGame] = useState("");
   const [stats, setStats] = useState({ wins: 0, losses: 0 });
   const [showClassement, setShowClassement] = useState(false);
+  const processedGameRef = useRef(null);
 
   useEffect(() => {
     const savedPseudo = localStorage.getItem("player_pseudo");
@@ -32,9 +33,12 @@ function App() {
 
     socket.on("update_ui", (state) => {
       setGameState((prevState) => {
-        if (state.status === 'finished' && prevState?.status !== 'finished' && state.lastResult !== 'draw') {
-          let iWon = false;
+        const gameId = `${state.roomName}_${state.status}`;
+
+        if (state.status === 'finished' && state.lastResult !== 'draw' && processedGameRef.current !== gameId) {
+          processedGameRef.current = gameId;
           
+          let iWon = false;
           if (state.gameType === 'tictactoe') {
             const myIndex = state.players.findIndex(p => p.id === socket.id);
             const mySymbol = myIndex === 0 ? 'X' : 'O';
@@ -47,7 +51,7 @@ function App() {
             const newStats = iWon
               ? { wins: prev.wins + 1, losses: prev.losses }
               : { wins: prev.wins, losses: prev.losses + 1 };
-              
+            
             const currentPseudo = localStorage.getItem("player_pseudo");
             if (currentPseudo) {
               localStorage.setItem(`stats_${currentPseudo.toLowerCase()}`, JSON.stringify(newStats));
@@ -55,6 +59,11 @@ function App() {
             return newStats;
           });
         }
+
+        if (state.status === 'waiting') {
+          processedGameRef.current = null;
+        }
+
         return state;
       });
     });
@@ -93,8 +102,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#020617] font-gaming text-slate-200 selection:bg-blue-500/30 overflow-x-hidden">
-      
-      {/* BACKGROUND SPACE SYSTEM */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-[#020617]">
         <div className="absolute inset-0 opacity-60" 
           style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '50px 50px' }}
@@ -107,7 +114,6 @@ function App() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] h-[1100px] border border-white/10 rounded-full opacity-50" />
       </div>
 
-      {/* HEADER GAMING */}
       <header className="sticky top-0 z-50 border-b border-white/5 bg-slate-950/60 backdrop-blur-xl p-4">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.location.reload()}>
@@ -145,7 +151,6 @@ function App() {
         </div>
       </header>
 
-      {/* CONTENU PRINCIPAL */}
       <main className="relative z-10 py-10 px-4">
         {showClassement ? (
           <Classement currentPseudo={myPseudo} socket={socket} />

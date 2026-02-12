@@ -5,12 +5,17 @@ const games = new Map();
 const leaderboard = new Map();
 
 function updateLeaderboard(winnerPseudo, loserPseudo, io) {
+    if (!winnerPseudo || !loserPseudo) return;
+    
     const wKey = winnerPseudo.toLowerCase();
     const lKey = loserPseudo.toLowerCase();
+    
     if (!leaderboard.has(wKey)) leaderboard.set(wKey, { wins: 0, losses: 0 });
     if (!leaderboard.has(lKey)) leaderboard.set(lKey, { wins: 0, losses: 0 });
+    
     leaderboard.get(wKey).wins++;
     leaderboard.get(lKey).losses++;
+    
     io.emit("leaderboard_update", getLeaderboardData());
 }
 
