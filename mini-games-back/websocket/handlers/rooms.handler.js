@@ -48,7 +48,6 @@ export const roomHandlers = (io, socket) => {
     socket.on('join_game', ({ room, pseudo, gameType }) => {
         const existingGame = games.get(room);
 
-        // EMPECHE DE REJOINDRE SI LE JEU EST DIFFERENT
         if (existingGame && existingGame.gameType !== gameType) {
             socket.emit("security_error", `Cette salle est déjà utilisée pour un jeu de ${existingGame.gameType}.`);
             return;
@@ -83,7 +82,6 @@ export const roomHandlers = (io, socket) => {
         if (!game.players.find(p => p.id === socket.id)) {
             game.players.push({ id: socket.id, pseudo: pseudo });
             
-            // Initialisation spécifique par jeu
             if (game.gameType === 'tictactoe' && game.players.length === 1) {
                 game.scores = { X: 0, O: 0 };
             }
@@ -137,7 +135,6 @@ export const roomHandlers = (io, socket) => {
                 if (game.players.length === 0) {
                     games.delete(room);
                 } else {
-                    // Si un joueur reste, on reset le jeu en attente
                     game.status = 'waiting';
                     game.board = Array(9).fill(null);
                     game.choices = {};
