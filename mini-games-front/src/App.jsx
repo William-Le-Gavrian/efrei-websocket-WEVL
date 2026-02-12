@@ -26,18 +26,36 @@ function App() {
     }
 
     socket.on("update_ui", (state) => {
-      setGameState(state);
+      setGameState((prevState) => {
+        if (state.status === 'finished' && prevState?.status !== 'finished') {
+          let iWon = false;
 
-      if (state.status === 'finished' && state.lastResult === socket.id) {
-        setStats(prev => {
-          const newStats = { wins: prev.wins + 1 };
-          const currentPseudo = localStorage.getItem("player_pseudo");
-          if (currentPseudo) {
-            localStorage.setItem(`stats_${currentPseudo.toLowerCase()}`, JSON.stringify(newStats));
+          if (state.gameType === 'shifumi' && state.lastResult === socket.id) {
+            iWon = true;
           }
-          return newStats;
-        });
-      }
+
+          if (state.gameType === 'tictactoe') {
+            const myIndex = state.players.findIndex(p => p.id === socket.id);
+            const mySymbol = myIndex === 0 ? 'X' : 'O';
+
+            if (state.lastResult === mySymbol) {
+              iWon = true;
+            }
+          }
+
+          if (iWon) {
+            setStats(prev => {
+              const newStats = { wins: prev.wins + 1 };
+              const currentPseudo = localStorage.getItem("player_pseudo");
+              if (currentPseudo) {
+                localStorage.setItem(`stats_${currentPseudo.toLowerCase()}`, JSON.stringify(newStats));
+              }
+              return newStats;
+            });
+          }
+        }
+        return state;
+      });
     });
 
     socket.on("security_error", (msg) => alert(msg));
@@ -61,7 +79,7 @@ function App() {
   };
 
   const handleJoin = (pseudo, room, gameType) => {
-    setCurrentGame(gameType); // "tictactoe" ou "shifumi"
+    setCurrentGame(gameType);
     socket.emit("join_game", { room, pseudo, gameType });
     setIsJoined(true);
   };
@@ -112,7 +130,7 @@ function App() {
             </div>
 
             <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/10 rounded-full border border-yellow-500/20">
-              < Trophy size={14} className="text-yellow-500" />
+              <Trophy size={14} className="text-yellow-500" />
               <span className="text-xs font-bold text-yellow-500">{stats.wins} WINS</span>
             </div>
 
