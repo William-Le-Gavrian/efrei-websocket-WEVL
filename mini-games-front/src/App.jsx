@@ -51,9 +51,9 @@ function App() {
           if (currentPseudo) {
             localStorage.setItem(`stats_${currentPseudo.toLowerCase()}`, JSON.stringify(newStats));
           }
-          return newStats;
-        });
-      }
+        }
+        return state;
+      });
     });
 
     socket.on("security_error", (msg) => alert(msg));
@@ -70,7 +70,7 @@ function App() {
   };
 
   const handleJoin = (pseudo, room, gameType) => {
-    setCurrentGame(gameType); // "tictactoe" ou "shifumi"
+    setCurrentGame(gameType);
     socket.emit("join_game", { room, pseudo, gameType });
     setIsJoined(true);
   };
