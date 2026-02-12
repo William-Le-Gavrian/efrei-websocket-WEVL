@@ -2,8 +2,43 @@ import { checkWin } from '../../services/tictactoe.js';
 import { getWinner } from '../../services/shifumi.js';
 
 const games = new Map();
+const leaderboard = new Map();
+
+function updateLeaderboard(winnerPseudo, loserPseudo, io) {
+    const wKey = winnerPseudo.toLowerCase();
+    const lKey = loserPseudo.toLowerCase();
+    if (!leaderboard.has(wKey)) leaderboard.set(wKey, { wins: 0, losses: 0 });
+    if (!leaderboard.has(lKey)) leaderboard.set(lKey, { wins: 0, losses: 0 });
+    leaderboard.get(wKey).wins++;
+    leaderboard.get(lKey).losses++;
+    io.emit("leaderboard_update", getLeaderboardData());
+}
+
+function getLeaderboardData() {
+    return Array.from(leaderboard.entries()).map(([pseudo, stats]) => ({
+        pseudo,
+        wins: stats.wins,
+        losses: stats.losses,
+    }));
+}
 
 export const roomHandlers = (io, socket) => {
+
+    socket.on('get_leaderboard', () => {
+        socket.emit('leaderboard_update', getLeaderboardData());
+    });
+
+    socket.on('sync_stats', ({ pseudo, wins, losses }) => {
+        if (!pseudo) return;
+        const key = pseudo.toLowerCase();
+        if (!leaderboard.has(key)) {
+            leaderboard.set(key, { wins: wins || 0, losses: losses || 0 });
+        } else {
+            const current = leaderboard.get(key);
+            current.wins = Math.max(current.wins, wins || 0);
+            current.losses = Math.max(current.losses, losses || 0);
+        }
+    });
 
     // ÉVÉNEMENT : REJOINDRE UNE SALLE
     socket.on('join_game', ({ room, pseudo, gameType }) => {
@@ -68,6 +103,7 @@ export const roomHandlers = (io, socket) => {
         const game = games.get(room);
 
         if (!game || game.status !== 'playing') return;
+
         if (game.gameType === 'tictactoe') {
             handleTictactoe(game, moveData, socket.id, room, io);
         } else if (game.gameType === 'shifumi') {
@@ -147,6 +183,9 @@ function handleTictactoe(game, index, socketId, room, io) {
             if (game.scores[result] === 3) {
                 game.status = 'finished';
                 game.lastResult = result;
+                const winnerIndex = result === 'X' ? 0 : 1;
+                const loserIndex = result === 'X' ? 1 : 0;
+                updateLeaderboard(game.players[winnerIndex].pseudo, game.players[loserIndex].pseudo, io);
             }
         }
     } else {
@@ -180,6 +219,9 @@ function handleShifumi(game, choice, socketId, room, io) {
         if (winnerId) {
             game.status = 'finished';
             game.lastResult = winnerId;
+            const winner = game.players.find(p => p.id === winnerId);
+            const loser = game.players.find(p => p.id !== winnerId);
+            updateLeaderboard(winner.pseudo, loser.pseudo, io);
         } else {
             game.choices = {};
         }

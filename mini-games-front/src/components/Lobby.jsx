@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 function Lobby({ onJoin, initialPseudo }) {
   const [room, setRoom] = useState("Mercure"); 
   const [gameType, setGameType] = useState("tictactoe");
-  const [stats, setStats] = useState({ wins: 0 });
+  const [stats, setStats] = useState({ wins: 0, losses: 0 });
 
   const rooms = [
     "Mercure", "Vénus", "Terre",
@@ -14,7 +14,10 @@ function Lobby({ onJoin, initialPseudo }) {
   useEffect(() => {
     if (initialPseudo) {
       const savedData = localStorage.getItem(`stats_${initialPseudo.toLowerCase()}`);
-      if (savedData) setStats(JSON.parse(savedData));
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
+        setStats({ wins: parsed.wins || 0, losses: parsed.losses || 0 });
+      }
     }
   }, [initialPseudo]);
 
@@ -28,7 +31,7 @@ function Lobby({ onJoin, initialPseudo }) {
                 {gameType === "tictactoe" ? "TIC TAC TOE" : "SHI-FU-MI"}
             </h1>
             <p className="text-blue-500 font-bold text-xs mt-2 italic tracking-widest">
-                JOUEUR : {initialPseudo.toUpperCase()} | VICTOIRES : {stats.wins}
+                JOUEUR : {initialPseudo.toUpperCase()} | {stats.wins}W - {stats.losses}L
             </p>
         </div>
 

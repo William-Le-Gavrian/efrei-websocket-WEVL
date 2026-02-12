@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import io from 'socket.io-client';
-import { Trophy, User, Gamepad2, LogOut } from 'lucide-react';
+import { Trophy, User, Gamepad2, LogOut, Medal, Skull } from 'lucide-react';
 import Lobby from './components/Lobby';
 import Tictactoe from './components/Tictactoe';
 import Shifumi from './components/Shifumi';
 import Chat from "./components/Chat";
 import PseudoEntry from './components/PseudoEntry';
+import Classement from './components/Classement';
 
 const socket = io("http://localhost:3001");
 
@@ -14,7 +15,8 @@ function App() {
   const [gameState, setGameState] = useState(null);
   const [myPseudo, setMyPseudo] = useState("");
   const [currentGame, setCurrentGame] = useState("");
-  const [stats, setStats] = useState({ wins: 0 });
+  const [stats, setStats] = useState({ wins: 0, losses: 0 });
+  const [showClassement, setShowClassement] = useState(false);
   const [messages, setMessages] = useState([]);
 
   useEffect(() => {
@@ -22,10 +24,38 @@ function App() {
     if (savedPseudo) {
       setMyPseudo(savedPseudo);
       const savedStats = localStorage.getItem(`stats_${savedPseudo.toLowerCase()}`);
-      if (savedStats) setStats(JSON.parse(savedStats));
+      if (savedStats) {
+        const parsed = JSON.parse(savedStats);
+        const s = { wins: parsed.wins || 0, losses: parsed.losses || 0 };
+        setStats(s);
+        socket.emit('sync_stats', { pseudo: savedPseudo, ...s });
+      }
     }
 
     socket.on("update_ui", (state) => {
+      setGameState(state);
+      
+      if (state.status === 'finished' && state.lastResult !== 'draw') {
+        let iWon = false;
+        if (state.gameType === 'tictactoe') {
+          const myIndex = state.players.findIndex(p => p.id === socket.id);
+          const mySymbol = myIndex === 0 ? 'X' : 'O';
+          iWon = state.lastResult === mySymbol;
+        } else {
+          iWon = state.lastResult === socket.id;
+        }
+
+        setStats(prev => {
+          const newStats = iWon
+            ? { wins: prev.wins + 1, losses: prev.losses }
+            : { wins: prev.wins, losses: prev.losses + 1 };
+          const currentPseudo = localStorage.getItem("player_pseudo");
+          if (currentPseudo) {
+            localStorage.setItem(`stats_${currentPseudo.toLowerCase()}`, JSON.stringify(newStats));
+          }
+          return newStats;
+        });
+      }
       setGameState((prevState) => {
         if (state.status === 'finished' && prevState?.status !== 'finished') {
           let iWon = false;
@@ -131,8 +161,18 @@ function App() {
 
             <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/10 rounded-full border border-yellow-500/20">
               <Trophy size={14} className="text-yellow-500" />
-              <span className="text-xs font-bold text-yellow-500">{stats.wins} WINS</span>
+              <span className="text-xs font-bold text-yellow-500">{stats.wins}</span>
             </div>
+
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 rounded-full border border-red-500/20">
+              <Skull size={14} className="text-red-400" />
+              <span className="text-xs font-bold text-red-400">{stats.losses}</span>
+            </div>
+
+            <button onClick={() => { setShowClassement(prev => !prev); setIsJoined(false); }} className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 rounded-full border border-purple-500/20 hover:bg-purple-500/20 transition-all cursor-pointer">
+              <Medal size={14} className="text-purple-400" />
+              <span className="text-xs font-bold text-purple-400 hidden sm:inline">CLASSEMENT</span>
+            </button>
 
             <button onClick={handleLogout} className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all">
               <LogOut size={18} />
@@ -143,7 +183,9 @@ function App() {
 
       {/* CONTENU PRINCIPAL */}
       <main className="relative z-10 py-10 px-4">
-        {!isJoined ? (
+        {showClassement ? (
+          <Classement currentPseudo={myPseudo} socket={socket} />
+        ) : !isJoined ? (
           <Lobby onJoin={handleJoin} initialPseudo={myPseudo} />
         ) : (
           <div className="flex">
