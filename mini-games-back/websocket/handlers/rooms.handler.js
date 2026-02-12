@@ -73,10 +73,24 @@ export const roomHandlers = (io, socket) => {
         }
 
         const game = games.get(room);
-        
+
         if (!game.players.find(p => p.id === socket.id)) {
             game.players.push({ id: socket.id, pseudo: pseudo });
+            game.board = Array(9).fill(null);
+            game.turn = 0;
+            game.lastResult = null;
+
+            if (game.gameType === 'tictactoe') {
+                game.scores = { X: 0, O: 0 };
+            }
         }
+
+        io.to(room).emit('message', {
+            username: 'SYSTEM',
+            userId: 'system',
+            content: `${pseudo} a rejoint la salle`,
+            timestamp: new Date(),
+        })
 
         if (game.players.length === 2) {
             game.status = 'playing';
@@ -105,23 +119,63 @@ export const roomHandlers = (io, socket) => {
     // ÉVÉNEMENT : DÉCONNEXION
     socket.on('disconnecting', () => {
         socket.rooms.forEach(room => {
-            if (games.has(room)) {
-                io.to(room).emit("security_error", "L'adversaire a quitté la base.");
-                games.delete(room);
+            const game = games.get(room);
+            if (game) {
+                const pseudo = game.players.find(p => p.id === socket.id)?.pseudo;
+                io.to(room).emit('message', {
+                    username: 'SYSTEM',
+                    userId: 'system',
+                    content: `${pseudo} a quitté la salle`,
+                    timestamp: new Date(),
+                });
+
+                game.players = game.players.filter(p => p.id !== socket.id);
+                // io.to(room).emit("security_error", "L'adversaire a quitté la base.");
+
+                if (game.players.length === 0) {
+                    games.delete(room);
+                } else {
+                    game.status = 'waiting';
+                    io.to(room).emit("update_ui", game);
+                }
             }
         });
     });
+
+    socket.on('message', (msg) => {
+        const room = Array.from(socket.rooms).find(room => room !== socket.id);
+        if (!room) {
+          return
+        }
+
+        const game = games.get(room);
+        if (!game) {
+          return
+        }
+
+        const currentUser = game.players.find(player => socket.id === player.id);
+        if(!currentUser) {
+          return;
+        }
+
+        io.to(room).emit('message', {
+          username: currentUser.pseudo,
+          userId: socket.id,
+          content: msg,
+          timestamp: new Date(),
+        });
+    })
 };
 
 // --- LOGIQUE INTERNE TICTACTOE (Best of 5) ---
 function handleTictactoe(game, index, socketId, room, io) {
     const playerIndex = game.players.findIndex(p => p.id === socketId);
-    
+
     if (playerIndex !== game.turn || game.board[index] !== null) return;
 
     const symbol = game.turn === 0 ? 'X' : 'O';
     game.board[index] = symbol;
-    
+
     const result = checkWin(game.board);
 
     if (result) {
@@ -130,7 +184,7 @@ function handleTictactoe(game, index, socketId, room, io) {
         } else {
             game.scores[result]++;
             game.board = Array(9).fill(null);
-            
+
             if (game.scores[result] === 3) {
                 game.status = 'finished';
                 game.lastResult = result;
@@ -142,7 +196,7 @@ function handleTictactoe(game, index, socketId, room, io) {
     } else {
         game.turn = game.turn === 0 ? 1 : 0;
     }
-    
+
     io.to(room).emit("update_ui", game);
 }
 
