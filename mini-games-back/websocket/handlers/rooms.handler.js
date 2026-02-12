@@ -42,9 +42,6 @@ export const roomHandlers = (io, socket) => {
 
             if (game.gameType === 'tictactoe') {
                 game.scores = { X: 0, O: 0 };
-            } else if (game.gameType === 'shifumi') {
-                game.scores = { [game.players[0].id]: 0, [game.players[1].id]: 0 };
-                game.choices = {};
             }
         }
 
