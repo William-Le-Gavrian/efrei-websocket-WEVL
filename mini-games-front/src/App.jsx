@@ -4,6 +4,7 @@ import { Trophy, User, Gamepad2, LogOut } from 'lucide-react';
 import Lobby from './components/Lobby';
 import Tictactoe from './components/Tictactoe';
 import Shifumi from './components/Shifumi';
+import Chat from "./components/Chat";
 import PseudoEntry from './components/PseudoEntry';
 
 const socket = io("http://localhost:3001");
@@ -14,6 +15,7 @@ function App() {
   const [myPseudo, setMyPseudo] = useState("");
   const [currentGame, setCurrentGame] = useState("");
   const [stats, setStats] = useState({ wins: 0 });
+  const [messages, setMessages] = useState([]);
 
   useEffect(() => {
     const savedPseudo = localStorage.getItem("player_pseudo");
@@ -25,7 +27,7 @@ function App() {
 
     socket.on("update_ui", (state) => {
       setGameState(state);
-      
+
       if (state.status === 'finished' && state.lastResult === socket.id) {
         setStats(prev => {
           const newStats = { wins: prev.wins + 1 };
@@ -45,6 +47,13 @@ function App() {
       socket.off("security_error");
     };
   }, []);
+
+  useEffect(() => {
+    socket.on('message', (msg) => {
+      setMessages(prev => [...prev, msg]);
+    });
+    return () => socket.off("message");
+  }, [])
 
   const savePseudo = (pseudo) => {
     localStorage.setItem("player_pseudo", pseudo);
@@ -72,10 +81,10 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#020617] font-gaming text-slate-200 selection:bg-blue-500/30 overflow-x-hidden">
-      
+
       {/* BACKGROUND SPACE SYSTEM */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-[#020617]">
-        <div className="absolute inset-0 opacity-60" 
+        <div className="absolute inset-0 opacity-60"
           style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '50px 50px' }}
         />
         <div className="absolute -top-20 -left-20 w-[500px] h-[500px] rounded-full bg-orange-500/30 blur-[100px] animate-pulse" />
@@ -95,13 +104,13 @@ function App() {
             </div>
             <h1 className="text-2xl font-black tracking-tighter italic uppercase">WEVL</h1>
           </div>
-          
+
           <div className="flex items-center gap-3 sm:gap-6">
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-full border border-white/5">
               <User size={14} className="text-blue-400" />
               <span className="text-xs font-bold uppercase tracking-wider">{myPseudo}</span>
             </div>
-            
+
             <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/10 rounded-full border border-yellow-500/20">
               < Trophy size={14} className="text-yellow-500" />
               <span className="text-xs font-bold text-yellow-500">{stats.wins} WINS</span>
@@ -119,13 +128,20 @@ function App() {
         {!isJoined ? (
           <Lobby onJoin={handleJoin} initialPseudo={myPseudo} />
         ) : (
-          <div className="animate-in fade-in zoom-in duration-300">
-            {/* CORRECTION ICI : "tictactoe" au lieu de "Tictactoe" pour matcher ton Lobby */}
-            {currentGame === "tictactoe" ? (
-              <Tictactoe gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
-            ) : (
-              <Shifumi gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
-            )}
+          <div className="flex">
+            <div className="animate-in fade-in zoom-in duration-300 flex-2">
+              {/* CORRECTION ICI : "tictactoe" au lieu de "Tictactoe" pour matcher ton Lobby */}
+              {currentGame === "tictactoe" ? (
+                <Tictactoe gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
+              ) : (
+                <Shifumi gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
+              )}
+            </div>
+            <Chat
+              messages={messages}
+              socket={socket}
+              socketId={socket.id}
+            />
           </div>
         )}
       </main>
