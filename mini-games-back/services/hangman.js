@@ -6,6 +6,8 @@ export function setWord(game, word) {
     game.word = wordToGuess;
     game.maskedWord = wordToGuess.replace(/[A-Z]/g, '_').replace(/ /g, " ");
     game.status = 'playing';
+    game.lettersGuessed = [];
+    game.errors = 0;
 }
 
 export function guessLetter(game, letter) {
@@ -23,13 +25,14 @@ export function guessLetter(game, letter) {
             }
         }
         game.maskedWord = newMaskedWord;
+    } else {
+        game.errors++;
     }
 
     if (game.maskedWord === game.word) {
         game.status = 'finished';
         game.lastResult = game.players[1].id;
     } else {
-        game.errors++;
         isGameOver(game);
     }
 }

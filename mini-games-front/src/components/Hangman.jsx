@@ -54,7 +54,6 @@ function Hangman({gameState, socket}) {
     return (
         <div className="min-h-[80vh] text-white flex flex-col items-center p-6 font-gaming bg-transparent relative">
 
-            {/* Header / Status */}
             <div
                 className="w-full max-w-md bg-slate-900/40 backdrop-blur-xl rounded-3xl p-4 border border-white/10 shadow-2xl mb-10 text-center relative overflow-hidden">
                 <div
@@ -71,7 +70,6 @@ function Hangman({gameState, socket}) {
                 )}
             </div>
 
-            {/* Input pour choisir le mot */}
             {status === "choosing" && isWordChooser && (
                 <form
                     onSubmit={(e) => {
@@ -97,7 +95,6 @@ function Hangman({gameState, socket}) {
                 </form>
             )}
 
-            {/* Mot masqué */}
             {status !== "choosing" && (
                 <h2 className="text-5xl sm:text-6xl font-black tracking-widest drop-shadow-[0_0_20px_rgba(255,255,255,0.2)] mb-8 animate-in fade-in zoom-in">
                     {maskedWord.split("").map((c, i) => (
@@ -106,7 +103,12 @@ function Hangman({gameState, socket}) {
                 </h2>
             )}
 
-            {/* Input pour deviner le mot */}
+            {status === "playing" && isGuesser && (
+                <p className="text-white font-bold uppercase mb-4">
+                    Erreurs : {errors} / {maxErrors}
+                </p>
+            )}
+
             {status === "playing" && isGuesser && (
                 <div className="flex gap-2 mb-8 w-full max-w-lg">
                     <input
@@ -124,7 +126,6 @@ function Hangman({gameState, socket}) {
                 </div>
             )}
 
-            {/* Clavier */}
             {status === "playing" && isGuesser && (
                 <div className="mt-auto mb-12 w-full max-w-4xl grid grid-cols-13 gap-2">
                     {alphabet.map((letter) => (
@@ -142,7 +143,6 @@ function Hangman({gameState, socket}) {
                 </div>
             )}
 
-            {/* Fin de partie */}
             {status === "finished" && (
                 <div className="mt-10 text-center space-y-4 animate-in fade-in zoom-in">
                     <h1 className="text-6xl sm:text-7xl font-black italic uppercase tracking-tighter drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">
