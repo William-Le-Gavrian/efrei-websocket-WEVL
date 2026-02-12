@@ -21,13 +21,20 @@ function Lobby({ onJoin, initialPseudo }) {
     }
   }, [initialPseudo]);
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    const cleanRoom = room.trim().toLowerCase().replace(/\s+/g, '-');
+    
+    onJoin(initialPseudo, cleanRoom, gameType);
+  };
+
   return (
     <div className="flex items-center justify-center p-4 font-gaming">
       <div className="w-full max-w-md p-8 bg-slate-900/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl">
         
-        {/* Titre et Stats (inchangés) */}
         <div className="mb-8 text-center">
-            <h1 className="text-4xl font-black text-white tracking-tighter uppercase">
+            <h1 className="text-4xl font-black text-white tracking-tighter uppercase italic">
                 {gameType === "tictactoe" ? "TIC TAC TOE" : "SHI-FU-MI"}
             </h1>
             <p className="text-blue-500 font-bold text-xs mt-2 italic tracking-widest">
@@ -35,23 +42,22 @@ function Lobby({ onJoin, initialPseudo }) {
             </p>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); onJoin(initialPseudo, room, gameType); }} className="space-y-6">
+        {/* Utilisation de la nouvelle fonction handleSubmit */}
+        <form onSubmit={handleSubmit} className="space-y-6">
           
-          {/* SÉLECTEUR DE JEU */}
           <div className="flex p-1 bg-slate-800/50 rounded-2xl gap-1 border border-white/5">
             <button type="button" onClick={() => setGameType("tictactoe")}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${gameType === 'tictactoe' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>
+              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${gameType === 'tictactoe' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
               TICTACTOE
             </button>
             <button type="button" onClick={() => setGameType("shifumi")}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${gameType === 'shifumi' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>
+              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${gameType === 'shifumi' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
               SHIFUMI
             </button>
           </div>
 
-          {/* LISTE DÉROULANTE DES SALLES */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-500 uppercase ml-1 tracking-widest">Sélectionner une Planète</label>
+            <label className="text-xs font-bold text-slate-500 uppercase ml-1 tracking-widest">Destination orbitale</label>
             <div className="relative">
               <select 
                 value={room}
@@ -60,11 +66,10 @@ function Lobby({ onJoin, initialPseudo }) {
               >
                 {rooms.map((r) => (
                   <option key={r} value={r} className="bg-slate-900 text-white">
-                    {r.replace('-', ' ')}
+                    {r}
                   </option>
                 ))}
               </select>
-              {/* Petite flèche personnalisée */}
               <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500">
                 ▼
               </div>
@@ -72,7 +77,7 @@ function Lobby({ onJoin, initialPseudo }) {
           </div>
 
           <button className="w-full p-5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl transition-all active:scale-95 shadow-lg shadow-blue-900/40 uppercase italic tracking-widest">
-            Atterissage sur la Planète
+            Initialiser la téléportation
           </button>
         </form>
       </div>

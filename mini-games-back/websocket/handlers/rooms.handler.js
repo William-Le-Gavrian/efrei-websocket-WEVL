@@ -45,16 +45,14 @@ export const roomHandlers = (io, socket) => {
         }
     });
 
-    // ÉVÉNEMENT : REJOINDRE UNE SALLE
     socket.on('join_game', ({ room, pseudo, gameType }) => {
-        const existingGame = games.get(room);
+        socket.rooms.forEach(r => {
+            if (r !== socket.id) socket.leave(r);
+        });
 
-        if (existingGame && existingGame.gameType !== gameType) {
-            socket.emit("security_error", `Désolé, cette planète est réservée à un duel de ${existingGame.gameType.toUpperCase()}.`);
-            return;
-        }
+        const gameRoomId = `${gameType}_${room}`;
 
-        const clients = io.sockets.adapter.rooms.get(room);
+        const clients = io.sockets.adapter.rooms.get(gameRoomId);
         const numClients = clients ? clients.size : 0;
 
         if (numClients >= 2) {
@@ -62,56 +60,57 @@ export const roomHandlers = (io, socket) => {
             return;
         }
 
-        socket.join(room);
-        console.log(`${pseudo} a rejoint la salle : ${room}`);
+        socket.join(gameRoomId);
 
-        if (!games.has(room)) {
-            games.set(room, {
+        if (!games.has(gameRoomId)) {
+            games.set(gameRoomId, {
                 roomName: room,
                 gameType: gameType,
                 status: 'waiting',
                 players: [],
                 board: Array(9).fill(null),
                 turn: 0,
-                scores: {},
+                scores: {}, 
                 choices: {},
                 lastResult: null
             });
         }
 
-        const game = games.get(room);
+        const game = games.get(gameRoomId);
 
         if (!game.players.find(p => p.id === socket.id)) {
             game.players.push({ id: socket.id, pseudo: pseudo });
             
-            if (game.gameType === 'tictactoe' && game.players.length === 1) {
+            if (game.gameType === 'shifumi') {
+                game.scores[socket.id] = 0;
+            } else if (game.gameType === 'tictactoe' && game.players.length === 1) {
                 game.scores = { X: 0, O: 0 };
             }
         }
 
-        io.to(room).emit('message', {
+        io.to(gameRoomId).emit('message', {
             username: 'SYSTEM',
             userId: 'system',
             content: `${pseudo} a rejoint la salle`,
             timestamp: new Date(),
-        })
+        });
 
         if (game.players.length === 2) {
             game.status = 'playing';
             game.board = Array(9).fill(null);
             if (game.gameType === 'shifumi') {
-                game.scores = { [game.players[0].id]: 0, [game.players[1].id]: 0 };
+                game.players.forEach(p => {
+                    if (game.scores[p.id] === undefined) game.scores[p.id] = 0;
+                });
             }
         }
 
-        io.to(room).emit("update_ui", game);
+        io.to(gameRoomId).emit("update_ui", game);
     });
 
-    // ÉVÉNEMENT : FAIRE UN MOUVEMENT
     socket.on('make_move', (moveData) => {
-        const room = Array.from(socket.rooms).find(r => r !== socket.id);
+        const room = Array.from(socket.rooms).find(r => games.has(r));
         const game = games.get(room);
-
         if (!game || game.status !== 'playing') return;
 
         if (game.gameType === 'tictactoe') {
@@ -121,43 +120,20 @@ export const roomHandlers = (io, socket) => {
         }
     });
 
-    // ÉVÉNEMENT : DÉCONNEXION
+    socket.on('leave_room', () => {
+        handleDeparture(socket, io);
+    });
+
     socket.on('disconnecting', () => {
-        socket.rooms.forEach(room => {
-            const game = games.get(room);
-            if (game) {
-                const player = game.players.find(p => p.id === socket.id);
-                if (player) {
-                    io.to(room).emit('message', {
-                        username: 'SYSTEM',
-                        userId: 'system',
-                        content: `${player.pseudo} a quitté la salle`,
-                        timestamp: new Date(),
-                    });
-                }
-
-                game.players = game.players.filter(p => p.id !== socket.id);
-
-                if (game.players.length === 0) {
-                    games.delete(room);
-                } else {
-                    game.status = 'waiting';
-                    game.board = Array(9).fill(null);
-                    game.choices = {};
-                    game.lastResult = null;
-                    io.to(room).emit("update_ui", game);
-                    io.to(room).emit("security_error", "L'adversaire a quitté la partie.");
-                }
-            }
-        });
+        handleDeparture(socket, io);
     });
 
     socket.on('message', (msg) => {
-        const room = Array.from(socket.rooms).find(room => room !== socket.id);
+        const room = Array.from(socket.rooms).find(r => games.has(r));
         const game = games.get(room);
         if (!game) return;
 
-        const currentUser = game.players.find(player => socket.id === player.id);
+        const currentUser = game.players.find(p => p.id === socket.id);
         if(!currentUser) return;
 
         io.to(room).emit('message', {
@@ -166,17 +142,48 @@ export const roomHandlers = (io, socket) => {
           content: msg,
           timestamp: new Date(),
         });
-    })
+    });
 };
 
-// --- LOGIQUE INTERNE TICTACTOE ---
+function handleDeparture(socket, io) {
+    socket.rooms.forEach(room => {
+        const game = games.get(room);
+        if (game) {
+            const player = game.players.find(p => p.id === socket.id);
+            if (player) {
+                io.to(room).emit('message', {
+                    username: 'SYSTEM',
+                    userId: 'system',
+                    content: `${player.pseudo} a quitté la salle`,
+                    timestamp: new Date(),
+                });
+            }
+
+            game.players = game.players.filter(p => p.id !== socket.id);
+
+            if (game.players.length === 0) {
+                games.delete(room);
+            } else {
+                if (game.status !== 'finished') {
+                    game.status = 'waiting';
+                    game.board = Array(9).fill(null);
+                    game.choices = {};
+                    game.scores = {}; 
+                    game.lastResult = null;
+                }
+                
+                io.to(room).emit("update_ui", game);
+            }
+        }
+    });
+}
+
 function handleTictactoe(game, index, socketId, room, io) {
     const playerIndex = game.players.findIndex(p => p.id === socketId);
     if (playerIndex !== game.turn || game.board[index] !== null) return;
 
     const symbol = game.turn === 0 ? 'X' : 'O';
     game.board[index] = symbol;
-
     const result = checkWin(game.board);
 
     if (result) {
@@ -199,13 +206,14 @@ function handleTictactoe(game, index, socketId, room, io) {
     } else {
         game.turn = game.turn === 0 ? 1 : 0;
     }
-
     io.to(room).emit("update_ui", game);
 }
 
-// --- LOGIQUE INTERNE SHIFUMI ---
 function handleShifumi(game, choice, socketId, room, io) {
+    if (game.choices[socketId]) return;
+
     game.choices[socketId] = choice;
+    io.to(room).emit("update_ui", game);
 
     if (Object.keys(game.choices).length === 2) {
         const p1Id = game.players[0].id;
@@ -232,10 +240,13 @@ function handleShifumi(game, choice, socketId, room, io) {
             if(winner && loser) {
                 updateLeaderboard(winner.pseudo, loser.pseudo, io);
             }
+            io.to(room).emit("update_ui", game);
         } else {
-            game.choices = {};
+            setTimeout(() => {
+                game.choices = {};
+                io.to(room).emit("update_ui", game);
+            }, 2000);
+            io.to(room).emit("update_ui", game);
         }
     }
-
-    io.to(room).emit("update_ui", game);
 }

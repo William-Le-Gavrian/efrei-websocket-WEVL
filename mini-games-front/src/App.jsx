@@ -19,6 +19,7 @@ function App() {
   const [showClassement, setShowClassement] = useState(false);
   const [messages, setMessages] = useState([]);
   const processedGameRef = useRef(null);
+  const isJoiningRef = useRef(false);
 
   useEffect(() => {
     const savedPseudo = localStorage.getItem("player_pseudo");
@@ -34,7 +35,7 @@ function App() {
 
     socket.on("update_ui", (state) => {
       setGameState((prevState) => {
-        const gameId = `${state.roomName}_${state.status}`;
+        const gameId = `${state.roomName}_${state.gameType}_${state.status}`;
 
         if (state.status === 'finished' && prevState?.status !== 'finished' && state.lastResult !== 'draw' && processedGameRef.current !== gameId) {
           processedGameRef.current = gameId;
@@ -50,8 +51,8 @@ function App() {
 
           setStats(prev => {
             const newStats = iWon
-              ? { wins: prev.wins + 1, losses: prev.losses }
-              : { wins: prev.wins, losses: prev.losses + 1 };
+              ? { ...prev, wins: prev.wins + 1 }
+              : { ...prev, losses: prev.losses + 1 };
             
             const currentP = localStorage.getItem("player_pseudo");
             if (currentP) {
@@ -70,10 +71,10 @@ function App() {
     });
 
     socket.on("security_error", (msg) => {
+      if (isJoiningRef.current) return;
       alert(msg);
       setIsJoined(false);
       setGameState(null);
-      setCurrentGame("");
     });
 
     return () => {
@@ -83,10 +84,20 @@ function App() {
   }, []);
 
   useEffect(() => {
-    socket.on('message', (msg) => {
+    if (isJoined && !gameState) {
+      const timer = setTimeout(() => {
+        setIsJoined(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isJoined, gameState]);
+
+  useEffect(() => {
+    const handleMessage = (msg) => {
       setMessages(prev => [...prev, msg]);
-    });
-    return () => socket.off("message");
+    };
+    socket.on('message', handleMessage);
+    return () => socket.off("message", handleMessage);
   }, []);
 
   const savePseudo = (pseudo) => {
@@ -99,10 +110,22 @@ function App() {
   };
 
   const handleJoin = (pseudo, room, gameType) => {
-    setCurrentGame(gameType);
-    socket.emit("join_game", { room, pseudo, gameType });
-    setIsJoined(true);
+    isJoiningRef.current = true;
+    setGameState(null);
     setMessages([]);
+    setCurrentGame(gameType);
+    setIsJoined(true);
+    socket.emit("join_game", { room, pseudo, gameType });
+    setTimeout(() => {
+      isJoiningRef.current = false;
+    }, 1500);
+  };
+
+  const handleLeaveGame = () => {
+    socket.emit('leave_room');
+    setIsJoined(false);
+    setGameState(null);
+    setCurrentGame("");
   };
 
   const handleMove = (index) => {
@@ -114,14 +137,10 @@ function App() {
     window.location.reload();
   };
 
-  if (!myPseudo) {
-    return <PseudoEntry onSave={savePseudo} />;
-  }
+  if (!myPseudo) return <PseudoEntry onSave={savePseudo} />;
 
   return (
     <div className="flex flex-col h-screen bg-[#020617] font-gaming text-slate-200 overflow-hidden">
-      
-      {/* BACKGROUND DECORATIF */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-[#020617]">
         <div className="absolute inset-0 opacity-60"
           style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '50px 50px' }}
@@ -129,9 +148,8 @@ function App() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] h-[1100px] border border-white/10 rounded-full opacity-50" />
       </div>
 
-      {/* HEADER FIXE */}
       <header className="z-50 border-b border-white/5 bg-slate-950/60 backdrop-blur-xl p-4 h-20 shrink-0">
-        <div className="max-w-full mx-auto flex justify-between items-center">
+        <div className="max-w-full mx-auto flex justify-between items-center px-4">
           <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.location.reload()}>
             <div className="p-2 bg-blue-600 rounded-lg shadow-lg shadow-blue-900/40 group-hover:rotate-12 transition-transform">
               <Gamepad2 size={20} className="text-white" />
@@ -154,7 +172,7 @@ function App() {
             </div>
             <button onClick={() => { setShowClassement(prev => !prev); setIsJoined(false); }} className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 rounded-full border border-purple-500/20 hover:bg-purple-500/20 transition-all cursor-pointer">
               <Medal size={14} className="text-purple-400" />
-              <span className="text-xs font-bold text-purple-400 hidden sm:inline uppercase">Classement</span>
+              <span className="text-xs font-bold text-purple-400 hidden sm:inline uppercase">CLASSEMENT</span>
             </button>
             <button onClick={handleLogout} className="p-2 text-slate-500 hover:text-red-400 transition-all">
               <LogOut size={18} />
@@ -163,10 +181,7 @@ function App() {
         </div>
       </header>
 
-      {/* ZONE PRINCIPALE SPLIT : JEU + CHAT */}
       <div className="flex flex-1 overflow-hidden">
-        
-        {/* COLONNE GAUCHE : LOBBY OU JEU */}
         <main className="flex-1 overflow-y-auto relative z-10 custom-scrollbar">
           <div className="p-6 h-full">
             {showClassement ? (
@@ -178,14 +193,26 @@ function App() {
                 {gameState ? (
                   <div className="animate-in fade-in zoom-in duration-300">
                     {currentGame === "tictactoe" ? (
-                      <Tictactoe gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
+                      <Tictactoe 
+                        gameState={gameState} 
+                        onMove={handleMove} 
+                        myPseudo={myPseudo} 
+                        socketId={socket.id} 
+                        onLeave={handleLeaveGame}
+                      />
                     ) : (
-                      <Shifumi gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
+                      <Shifumi 
+                        gameState={gameState} 
+                        onMove={handleMove} 
+                        myPseudo={myPseudo} 
+                        socketId={socket.id} 
+                        onLeave={handleLeaveGame}
+                      />
                     )}
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-full text-slate-500 italic">
-                    Synchronisation orbitale en cours...
+                    Synchronisation orbitale...
                   </div>
                 )}
               </div>
@@ -193,7 +220,6 @@ function App() {
           </div>
         </main>
 
-        {/* COLONNE DROITE : CHAT (Prend toute la hauteur restante sous le header) */}
         {isJoined && !showClassement && (
           <aside className="w-80 border-l border-white/5 bg-slate-950/40 backdrop-blur-md hidden lg:flex flex-col shrink-0 animate-in slide-in-from-right duration-500">
             <Chat 
