@@ -36,6 +36,16 @@ export const roomHandlers = (io, socket) => {
 
         if (!game.players.find(p => p.id === socket.id)) {
             game.players.push({ id: socket.id, pseudo: pseudo });
+            game.board = Array(9).fill(null);
+            game.turn = 0;
+            game.lastResult = null;
+
+            if (game.gameType === 'tictactoe') {
+                game.scores = { X: 0, O: 0 };
+            } else if (game.gameType === 'shifumi') {
+                game.scores = { [game.players[0].id]: 0, [game.players[1].id]: 0 };
+                game.choices = {};
+            }
         }
 
         io.to(room).emit('message', {
