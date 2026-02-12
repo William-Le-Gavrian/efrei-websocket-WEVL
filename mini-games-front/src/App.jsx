@@ -31,26 +31,29 @@ function App() {
     }
 
     socket.on("update_ui", (state) => {
-      setGameState(state);
-      
-      if (state.status === 'finished' && state.lastResult !== 'draw') {
-        let iWon = false;
-        if (state.gameType === 'tictactoe') {
-          const myIndex = state.players.findIndex(p => p.id === socket.id);
-          const mySymbol = myIndex === 0 ? 'X' : 'O';
-          iWon = state.lastResult === mySymbol;
-        } else {
-          iWon = state.lastResult === socket.id;
-        }
-
-        setStats(prev => {
-          const newStats = iWon
-            ? { wins: prev.wins + 1, losses: prev.losses }
-            : { wins: prev.wins, losses: prev.losses + 1 };
-          const currentPseudo = localStorage.getItem("player_pseudo");
-          if (currentPseudo) {
-            localStorage.setItem(`stats_${currentPseudo.toLowerCase()}`, JSON.stringify(newStats));
+      setGameState((prevState) => {
+        if (state.status === 'finished' && prevState?.status !== 'finished' && state.lastResult !== 'draw') {
+          let iWon = false;
+          
+          if (state.gameType === 'tictactoe') {
+            const myIndex = state.players.findIndex(p => p.id === socket.id);
+            const mySymbol = myIndex === 0 ? 'X' : 'O';
+            iWon = state.lastResult === mySymbol;
+          } else {
+            iWon = state.lastResult === socket.id;
           }
+
+          setStats(prev => {
+            const newStats = iWon
+              ? { wins: prev.wins + 1, losses: prev.losses }
+              : { wins: prev.wins, losses: prev.losses + 1 };
+              
+            const currentPseudo = localStorage.getItem("player_pseudo");
+            if (currentPseudo) {
+              localStorage.setItem(`stats_${currentPseudo.toLowerCase()}`, JSON.stringify(newStats));
+            }
+            return newStats;
+          });
         }
         return state;
       });
