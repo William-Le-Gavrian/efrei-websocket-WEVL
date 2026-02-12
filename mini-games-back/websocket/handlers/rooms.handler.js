@@ -45,8 +45,15 @@ export const roomHandlers = (io, socket) => {
         }
     });
 
-    // ÉVÉNEMENT : REJOINDRE UNE SALLE
     socket.on('join_game', ({ room, pseudo, gameType }) => {
+        const existingGame = games.get(room);
+
+        // EMPECHE DE REJOINDRE SI LE JEU EST DIFFERENT
+        if (existingGame && existingGame.gameType !== gameType) {
+            socket.emit("security_error", `Cette salle est déjà utilisée pour un jeu de ${existingGame.gameType}.`);
+            return;
+        }
+
         const clients = io.sockets.adapter.rooms.get(room);
         const numClients = clients ? clients.size : 0;
 
@@ -56,7 +63,6 @@ export const roomHandlers = (io, socket) => {
         }
 
         socket.join(room);
-        console.log(`${pseudo} a rejoint la salle : ${room}`);
 
         if (!games.has(room)) {
             games.set(room, {
@@ -66,7 +72,7 @@ export const roomHandlers = (io, socket) => {
                 players: [],
                 board: Array(9).fill(null),
                 turn: 0,
-                scores: { X: 0, O: 0 },
+                scores: {},
                 choices: {},
                 lastResult: null
             });
@@ -76,11 +82,9 @@ export const roomHandlers = (io, socket) => {
 
         if (!game.players.find(p => p.id === socket.id)) {
             game.players.push({ id: socket.id, pseudo: pseudo });
-            game.board = Array(9).fill(null);
-            game.turn = 0;
-            game.lastResult = null;
-
-            if (game.gameType === 'tictactoe') {
+            
+            // Initialisation spécifique par jeu
+            if (game.gameType === 'tictactoe' && game.players.length === 1) {
                 game.scores = { X: 0, O: 0 };
             }
         }
@@ -90,7 +94,7 @@ export const roomHandlers = (io, socket) => {
             userId: 'system',
             content: `${pseudo} a rejoint la salle`,
             timestamp: new Date(),
-        })
+        });
 
         if (game.players.length === 2) {
             game.status = 'playing';
@@ -102,11 +106,9 @@ export const roomHandlers = (io, socket) => {
         io.to(room).emit("update_ui", game);
     });
 
-    // ÉVÉNEMENT : FAIRE UN MOUVEMENT
     socket.on('make_move', (moveData) => {
         const room = Array.from(socket.rooms).find(r => r !== socket.id);
         const game = games.get(room);
-
         if (!game || game.status !== 'playing') return;
 
         if (game.gameType === 'tictactoe') {
@@ -116,26 +118,30 @@ export const roomHandlers = (io, socket) => {
         }
     });
 
-    // ÉVÉNEMENT : DÉCONNEXION
     socket.on('disconnecting', () => {
         socket.rooms.forEach(room => {
             const game = games.get(room);
             if (game) {
-                const pseudo = game.players.find(p => p.id === socket.id)?.pseudo;
-                io.to(room).emit('message', {
-                    username: 'SYSTEM',
-                    userId: 'system',
-                    content: `${pseudo} a quitté la salle`,
-                    timestamp: new Date(),
-                });
+                const player = game.players.find(p => p.id === socket.id);
+                if (player) {
+                    io.to(room).emit('message', {
+                        username: 'SYSTEM',
+                        userId: 'system',
+                        content: `${player.pseudo} a quitté la salle`,
+                        timestamp: new Date(),
+                    });
+                }
 
                 game.players = game.players.filter(p => p.id !== socket.id);
-                // io.to(room).emit("security_error", "L'adversaire a quitté la base.");
 
                 if (game.players.length === 0) {
                     games.delete(room);
                 } else {
+                    // Si un joueur reste, on reset le jeu en attente
                     game.status = 'waiting';
+                    game.board = Array(9).fill(null);
+                    game.choices = {};
+                    game.scores = game.gameType === 'tictactoe' ? { X: 0, O: 0 } : {};
                     io.to(room).emit("update_ui", game);
                 }
             }
@@ -144,38 +150,27 @@ export const roomHandlers = (io, socket) => {
 
     socket.on('message', (msg) => {
         const room = Array.from(socket.rooms).find(room => room !== socket.id);
-        if (!room) {
-          return
-        }
-
         const game = games.get(room);
-        if (!game) {
-          return
-        }
+        if (!game) return;
 
-        const currentUser = game.players.find(player => socket.id === player.id);
-        if(!currentUser) {
-          return;
-        }
+        const currentUser = game.players.find(p => p.id === socket.id);
+        if (!currentUser) return;
 
         io.to(room).emit('message', {
-          username: currentUser.pseudo,
-          userId: socket.id,
-          content: msg,
-          timestamp: new Date(),
+            username: currentUser.pseudo,
+            userId: socket.id,
+            content: msg,
+            timestamp: new Date(),
         });
-    })
+    });
 };
 
-// --- LOGIQUE INTERNE TICTACTOE (Best of 5) ---
 function handleTictactoe(game, index, socketId, room, io) {
     const playerIndex = game.players.findIndex(p => p.id === socketId);
-
     if (playerIndex !== game.turn || game.board[index] !== null) return;
 
     const symbol = game.turn === 0 ? 'X' : 'O';
     game.board[index] = symbol;
-
     const result = checkWin(game.board);
 
     if (result) {
@@ -188,19 +183,19 @@ function handleTictactoe(game, index, socketId, room, io) {
             if (game.scores[result] === 3) {
                 game.status = 'finished';
                 game.lastResult = result;
-                const winnerIndex = result === 'X' ? 0 : 1;
-                const loserIndex = result === 'X' ? 1 : 0;
-                updateLeaderboard(game.players[winnerIndex].pseudo, game.players[loserIndex].pseudo, io);
+                const winnerIdx = result === 'X' ? 0 : 1;
+                const loserIdx = result === 'X' ? 1 : 0;
+                if (game.players[winnerIdx] && game.players[loserIdx]) {
+                    updateLeaderboard(game.players[winnerIdx].pseudo, game.players[loserIdx].pseudo, io);
+                }
             }
         }
     } else {
         game.turn = game.turn === 0 ? 1 : 0;
     }
-
     io.to(room).emit("update_ui", game);
 }
 
-// --- LOGIQUE INTERNE SHIFUMI (Best of 5) ---
 function handleShifumi(game, choice, socketId, room, io) {
     game.choices[socketId] = choice;
 
@@ -226,11 +221,10 @@ function handleShifumi(game, choice, socketId, room, io) {
             game.lastResult = winnerId;
             const winner = game.players.find(p => p.id === winnerId);
             const loser = game.players.find(p => p.id !== winnerId);
-            updateLeaderboard(winner.pseudo, loser.pseudo, io);
+            updateLeaderboard(winner?.pseudo, loser?.pseudo, io);
         } else {
             game.choices = {};
         }
     }
-
     io.to(room).emit("update_ui", game);
 }
