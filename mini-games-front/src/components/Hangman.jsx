@@ -68,6 +68,16 @@ function Hangman({gameState, socket}) {
                         L’adversaire choisit un mot...
                     </p>
                 )}
+                {status === "playing" && isWordChooser && (
+                    <p className="text-blue-500 font-black tracking-widest uppercase">
+                        L’adversaire devine le mot...
+                    </p>
+                )}
+                {status === "playing" && isGuesser && (
+                    <p className="text-blue-500 font-black tracking-widest uppercase">
+                        Devinez le mot
+                    </p>
+                )}
             </div>
 
             {status === "choosing" && isWordChooser && (
@@ -84,7 +94,7 @@ function Hangman({gameState, socket}) {
                         onChange={(e) => setWordInput(e.target.value.toUpperCase())}
                         maxLength={30}
                         placeholder="Tape ton mot ici"
-                        className="w-full p-4 rounded-2xl text-black font-black border-2 border-white/10 focus:border-blue-500 backdrop-blur-sm placeholder:text-slate-400"
+                        className="w-full p-4 rounded-2xl text-white font-black border-2 border-white/10 focus:border-blue-500 backdrop-blur-sm placeholder:text-slate-400"
                     />
                     <button
                         type="submit"
@@ -114,7 +124,7 @@ function Hangman({gameState, socket}) {
                     <input
                         value={guessInput}
                         onChange={(e) => setGuessInput(e.target.value.toUpperCase())}
-                        className="flex-1 p-4 rounded-2xl text-black font-black border-2 border-white/10 focus:border-blue-500 backdrop-blur-sm placeholder:text-slate-400"
+                        className="flex-1 p-4 rounded-2xl text-white font-black border-2 border-white/10 focus:border-blue-500 backdrop-blur-sm placeholder:text-slate-400"
                         placeholder="Deviner le mot entier"
                     />
                     <button

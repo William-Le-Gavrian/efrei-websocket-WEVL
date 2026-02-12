@@ -44,6 +44,8 @@ function App() {
           iWon = state.lastResult === mySymbol;
         } else if (state.gameType === 'shifumi') {
           iWon = state.lastResult === socket.id;
+        } else if (state.gameType === 'hangman') {
+          iWon = state.lastResult === socket.id;
         }
 
         setStats(prev => {
