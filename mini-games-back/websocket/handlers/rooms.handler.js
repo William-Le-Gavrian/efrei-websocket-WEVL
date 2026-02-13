@@ -46,7 +46,6 @@ export const roomHandlers = (io, socket) => {
         }
     });
 
-    // ÉVÉNEMENT : REJOINDRE UNE SALLE
     socket.on('join_game', ({ room, pseudo, gameType }) => {
         const clients = io.sockets.adapter.rooms.get(room);
         const numClients = clients ? clients.size : 0;
@@ -95,8 +94,6 @@ export const roomHandlers = (io, socket) => {
                 game.scores = { X: 0, O: 0 };
                 game.board = Array(9).fill(null);
                 game.turn = 0;
-            } else if ('hangman' === game.gameType) {
-
             }
         }
 
@@ -105,7 +102,7 @@ export const roomHandlers = (io, socket) => {
             userId: 'system',
             content: `${pseudo} a rejoint la salle`,
             timestamp: new Date(),
-        })
+        });
 
         if (game.players.length === 2) {
             game.status = 'playing';
@@ -135,7 +132,10 @@ export const roomHandlers = (io, socket) => {
         }
     });
 
-    // ÉVÉNEMENT : DÉCONNEXION
+    socket.on('leave_room', () => {
+        handleDeparture(socket, io);
+    });
+
     socket.on('disconnecting', () => {
         socket.rooms.forEach(room => {
             const game = games.get(room);
@@ -149,7 +149,6 @@ export const roomHandlers = (io, socket) => {
                 });
 
                 game.players = game.players.filter(p => p.id !== socket.id);
-                // io.to(room).emit("security_error", "L'adversaire a quitté la base.");
 
                 if (game.players.length === 0) {
                     games.delete(room);

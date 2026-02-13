@@ -88,7 +88,6 @@ function App() {
       socket.emit('sync_stats', { pseudo, ...s });
   };
 
-
   const handleJoin = (pseudo, room, gameType) => {
     setCurrentGame(gameType);
     socket.emit("join_game", { room, pseudo, gameType });
@@ -104,28 +103,19 @@ function App() {
     window.location.reload();
   };
 
-  if (!myPseudo) {
-    return <PseudoEntry onSave={savePseudo} />;
-  }
+  if (!myPseudo) return <PseudoEntry onSave={savePseudo} />;
 
   return (
-    <div className="min-h-screen bg-[#020617] font-gaming text-slate-200 selection:bg-blue-500/30 overflow-x-hidden">
-
-      {/* BACKGROUND SPACE SYSTEM */}
+    <div className="flex flex-col h-screen bg-[#020617] font-gaming text-slate-200 overflow-hidden">
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-[#020617]">
         <div className="absolute inset-0 opacity-60"
           style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '50px 50px' }}
         />
-        <div className="absolute -top-20 -left-20 w-[500px] h-[500px] rounded-full bg-orange-500/30 blur-[100px] animate-pulse" />
-        <div className="absolute top-10 left-10 w-32 h-32 rounded-full bg-yellow-400/20 blur-[50px]" />
-        <div className="absolute top-[20%] right-[15%] w-72 h-72 rounded-full bg-blue-500/30 blur-[80px]" />
-        <div className="absolute bottom-[20%] left-[10%] w-64 h-64 rounded-full bg-red-500/30 blur-[70px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] border border-white/10 rounded-full" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] h-[1100px] border border-white/10 rounded-full opacity-50" />
       </div>
 
-      <header className="sticky top-0 z-50 border-b border-white/5 bg-slate-950/60 backdrop-blur-xl p-4">
-        <div className="max-w-5xl mx-auto flex justify-between items-center">
+      <header className="z-50 border-b border-white/5 bg-slate-950/60 backdrop-blur-xl p-4 h-20 shrink-0">
+        <div className="max-w-full mx-auto flex justify-between items-center px-4">
           <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.location.reload()}>
             <div className="p-2 bg-blue-600 rounded-lg shadow-lg shadow-blue-900/40 group-hover:rotate-12 transition-transform">
               <Gamepad2 size={20} className="text-white" />
@@ -138,23 +128,19 @@ function App() {
               <User size={14} className="text-blue-400" />
               <span className="text-xs font-bold uppercase tracking-wider">{myPseudo}</span>
             </div>
-
             <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/10 rounded-full border border-yellow-500/20">
               <Trophy size={14} className="text-yellow-500" />
               <span className="text-xs font-bold text-yellow-500">{stats.wins}</span>
             </div>
-
             <div className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 rounded-full border border-red-500/20">
               <Skull size={14} className="text-red-400" />
               <span className="text-xs font-bold text-red-400">{stats.losses}</span>
             </div>
-
             <button onClick={() => { setShowClassement(prev => !prev); setIsJoined(false); }} className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 rounded-full border border-purple-500/20 hover:bg-purple-500/20 transition-all cursor-pointer">
               <Medal size={14} className="text-purple-400" />
-              <span className="text-xs font-bold text-purple-400 hidden sm:inline">CLASSEMENT</span>
+              <span className="text-xs font-bold text-purple-400 hidden sm:inline uppercase">CLASSEMENT</span>
             </button>
-
-            <button onClick={handleLogout} className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all">
+            <button onClick={handleLogout} className="p-2 text-slate-500 hover:text-red-400 transition-all">
               <LogOut size={18} />
             </button>
           </div>
