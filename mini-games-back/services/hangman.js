@@ -37,21 +37,21 @@ export function guessLetter(game, letter) {
     }
 }
 
-export function guessWord(game, word) {
+export function guessWord(game, word, players) {
     word = word.trim().toUpperCase();
 
     if(word === game.word){
         game.status = 'finished';
-        game.lastResult = game.players[1].id;
+        game.lastResult = players[1].id;
     } else {
         game.errors++;
         isGameOver(game);
     }
 }
 
-function isGameOver(game) {
+function isGameOver(game, players) {
     if(game.errors >= game.maxErrors) {
         game.status = 'finished';
-        game.lastResult = game.players[0].id;
+        game.lastResult = players[0].id;
     }
 }

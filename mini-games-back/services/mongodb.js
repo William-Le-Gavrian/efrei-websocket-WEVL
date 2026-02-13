@@ -14,8 +14,8 @@ export async function connectDB() {
 
 export async function saveGameResult({ winner, loser, gameType, scores }) {
     await db.collection("game_results").insertOne({
-        winner,
-        loser,
+        winner: winner.pseudo,
+        loser: loser.pseudo,
         gameType,
         scores,
         date: new Date()
