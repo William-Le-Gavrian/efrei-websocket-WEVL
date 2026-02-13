@@ -1,17 +1,13 @@
 import React from 'react';
+import Loader from "./Loader.jsx";
 
 function Shifumi({ gameState, onMove, socketId, onLeave }) {
   if (!gameState) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-blue-500 font-black tracking-widest animate-pulse font-gaming uppercase">Initialisation du Duel...</p>
-      </div>
-    </div>
+      <Loader/>
   );
 
   const { players, status, lastResult, choices, scores } = gameState;
-  
+
   const safeChoices = choices || {};
   const myChoice = safeChoices[socketId] || null;
   const hasPlayed = myChoice !== null;
@@ -30,7 +26,7 @@ function Shifumi({ gameState, onMove, socketId, onLeave }) {
   return (
     <div className="min-h-[80vh] text-white flex flex-col items-center p-4 sm:p-6 font-gaming bg-transparent">
       
-      {/* SCORES & VS */}
+      {/* Header : SCORES & VS - Style Glassmorphism */}
       <div className="w-full max-w-md bg-slate-900/40 backdrop-blur-xl p-4 rounded-3xl border border-white/10 shadow-2xl mb-10 flex justify-between items-center relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-transparent pointer-events-none"></div>
         
@@ -60,6 +56,21 @@ function Shifumi({ gameState, onMove, socketId, onLeave }) {
       </div>
 
       <div className="flex-1 w-full max-w-4xl flex flex-col items-center justify-center">
+        
+        {status === 'waiting' && (
+          <div className="text-center space-y-6 animate-pulse">
+            <div className="text-7xl">⏳</div>
+            <p className="text-slate-400 font-bold tracking-[0.3em] text-sm uppercase italic">En attente d'un joueur...</p>
+          </div>
+        )}
+
+        {status === 'waiting_reconnect' && (
+          <div className="text-center space-y-6 animate-pulse">
+            <div className="text-7xl">📡</div>
+            <p className="text-rose-500 font-bold tracking-[0.3em] text-sm uppercase italic">Le pilote adverse est déconnecté...</p>
+          </div>
+        )}
+
         {status === 'playing' && (
           <div className="w-full space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
             <div className="text-center">
@@ -117,6 +128,7 @@ function Shifumi({ gameState, onMove, socketId, onLeave }) {
                   {lastResult === 'draw' ? <span className="text-slate-400">ÉGALITÉ</span> : 
                    lastResult === socketId ? <span className="text-blue-500 animate-pulse">MISSION RÉUSSIE</span> : <span className="text-rose-600">DÉFAITE SPATIALE</span>}
                </h1>
+               <p className="text-slate-500 font-bold tracking-[0.5em] text-xs uppercase">Duel spatial terminé en 3 manches</p>
              </div>
 
              <button 

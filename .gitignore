@@ -1,2 +1,4 @@
 .idea
 node_modules
+mini-games-back/.env
+.DS_Store

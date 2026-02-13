@@ -1,17 +1,13 @@
 import React from 'react';
+import Loader from "./Loader.jsx";
 
 function Tictactoe({ gameState, onMove, myPseudo, socketId, onLeave }) {
   if (!gameState) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#020617]">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-blue-500 font-black tracking-widest animate-pulse font-gaming uppercase text-center">Initialisation du Nexus...</p>
-      </div>
-    </div>
+    <Loader/>
   );
 
   const { board, players, turn, status, lastResult, scores } = gameState;
-  
+
   const myIndex = players.findIndex(p => p.id === socketId);
   const isMyTurn = turn === myIndex;
   const mySymbol = myIndex === 0 ? 'X' : 'O';
@@ -59,20 +55,22 @@ function Tictactoe({ gameState, onMove, myPseudo, socketId, onLeave }) {
         ) : status === 'finished' ? (
           <div className="flex flex-col items-center gap-4 scale-in-center">
              <h1 className="text-4xl sm:text-6xl font-black italic uppercase text-center">
-                {lastResult === 'draw' ? <span className="text-slate-400">ÉGALITÉ</span> : 
+                {lastResult === 'draw' ? <span className="text-slate-400">ÉGALITÉ</span> :
                  lastResult === mySymbol ? <span className="text-blue-500">VICTOIRE</span> : <span className="text-rose-600">DÉFAITE</span>}
              </h1>
+             <p className="text-slate-500 text-xs font-bold uppercase tracking-[0.4em]">Victoire finale après 3 manches</p>
              
-             {/* Utilisation de onLeave au lieu du reload */}
-             <button 
-               onClick={onLeave} 
+             <button
+                 onClick={() => window.location.reload()}
                className="px-8 py-3 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-500 transition-all active:scale-95 uppercase text-sm shadow-[0_0_20px_rgba(37,99,235,0.4)]"
              >
                Retour au menu
              </button>
           </div>
+        ) : status === 'waiting_reconnect' ? (
+          <div className="text-rose-500 font-black italic tracking-widest animate-pulse uppercase">Le pilote adverse est déconnecté...</div>
         ) : (
-          <div className="text-blue-500 font-black tracking-widest animate-bounce uppercase text-sm">Attente du second pilote...</div>
+          <div className="text-blue-500 font-black italic tracking-widest animate-bounce uppercase">En attente d'un joueur...</div>
         )}
       </div>
 

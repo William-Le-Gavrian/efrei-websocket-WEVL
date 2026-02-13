@@ -1,252 +1,199 @@
-import { checkWin } from '../../services/tictactoe.js';
-import { getWinner } from '../../services/shifumi.js';
+import { RoomManager } from '../../rooms/roomManager.js';
+import { getLeaderboard, saveGameResult } from "../../services/mongodb.js";
 
-const games = new Map();
-const leaderboard = new Map();
-
-function updateLeaderboard(winnerPseudo, loserPseudo, io) {
-    if (!winnerPseudo || !loserPseudo) return;
-    
-    const wKey = winnerPseudo.toLowerCase();
-    const lKey = loserPseudo.toLowerCase();
-    
-    if (!leaderboard.has(wKey)) leaderboard.set(wKey, { wins: 0, losses: 0 });
-    if (!leaderboard.has(lKey)) leaderboard.set(lKey, { wins: 0, losses: 0 });
-    
-    leaderboard.get(wKey).wins++;
-    leaderboard.get(lKey).losses++;
-    
-    io.emit("leaderboard_update", getLeaderboardData());
-}
-
-function getLeaderboardData() {
-    return Array.from(leaderboard.entries()).map(([pseudo, stats]) => ({
-        pseudo,
-        wins: stats.wins,
-        losses: stats.losses,
-    }));
-}
+const manager = new RoomManager();
 
 export const roomHandlers = (io, socket) => {
 
-    socket.on('get_leaderboard', () => {
-        socket.emit('leaderboard_update', getLeaderboardData());
+    socket.on('get_leaderboard', async () => {
+        const leaderboard = await getLeaderboard();
+        socket.emit('leaderboard_update', leaderboard);
     });
 
-    socket.on('sync_stats', ({ pseudo, wins, losses }) => {
-        if (!pseudo) return;
-        const key = pseudo.toLowerCase();
-        if (!leaderboard.has(key)) {
-            leaderboard.set(key, { wins: wins || 0, losses: losses || 0 });
-        } else {
-            const current = leaderboard.get(key);
-            current.wins = Math.max(current.wins, wins || 0);
-            current.losses = Math.max(current.losses, losses || 0);
+    socket.on('get_active_rooms', () => {
+        socket.emit('active_rooms_update', manager.getActiveRooms());
+    });
+
+    socket.on('check_session', (pseudo) => {
+        for (const [, gameRoom] of manager.rooms) {
+            if (['playing', 'waiting_reconnect'].includes(gameRoom.status)) {
+                const player = gameRoom.players.find(p => p.pseudo === pseudo);
+                if (player) {
+                    socket.emit('session_found', { room: gameRoom.roomName, gameType: gameRoom.gameType });
+                    return;
+                }
+            }
         }
+        socket.emit('no_session_found');
     });
 
     socket.on('join_game', ({ room, pseudo, gameType }) => {
-        socket.rooms.forEach(r => {
-            if (r !== socket.id) socket.leave(r);
-        });
+        let gameRoom = manager.getRoom(room);
 
-        const gameRoomId = `${gameType}_${room}`;
-
-        const clients = io.sockets.adapter.rooms.get(gameRoomId);
-        const numClients = clients ? clients.size : 0;
-
-        if (numClients >= 2) {
-            socket.emit("security_error", "Dojo complet (2/2). Choisis une autre planète !");
-            return;
-        }
-
-        socket.join(gameRoomId);
-
-        if (!games.has(gameRoomId)) {
-            games.set(gameRoomId, {
-                roomName: room,
-                gameType: gameType,
-                status: 'waiting',
-                players: [],
-                board: Array(9).fill(null),
-                turn: 0,
-                scores: {}, 
-                choices: {},
-                lastResult: null
-            });
-        }
-
-        const game = games.get(gameRoomId);
-
-        if (!game.players.find(p => p.id === socket.id)) {
-            game.players.push({ id: socket.id, pseudo: pseudo });
-            
-            if (game.gameType === 'shifumi') {
-                game.scores[socket.id] = 0;
-            } else if (game.gameType === 'tictactoe' && game.players.length === 1) {
-                game.scores = { X: 0, O: 0 };
+        if (gameRoom?.status === 'waiting_reconnect') {
+            if (gameRoom.reconnect(pseudo, socket.id)) {
+                socket.join(room);
+                io.to(room).emit('message', {
+                    username: 'SYSTEM',
+                    userId: 'system',
+                    content: `${pseudo} s'est reconnecté`,
+                    timestamp: new Date(),
+                });
+                io.to(room).emit('update_ui', gameRoom.serialize());
+                manager.broadcastActiveRooms(io);
+                return;
             }
         }
 
-        io.to(gameRoomId).emit('message', {
+        if (gameRoom && gameRoom.gameType !== gameType) {
+            socket.emit('security_error', `Cette salle est réservée à ${gameRoom.gameType}`);
+            return;
+        }
+
+        const clients = io.sockets.adapter.rooms.get(room);
+        const numClients = clients ? clients.size : 0;
+        if (numClients >= 2) {
+            socket.emit('security_error', 'Dojo complet (2/2).');
+            return;
+        }
+
+        if (!gameRoom) {
+            gameRoom = manager.createRoom(room, gameType);
+        }
+
+        socket.join(room);
+        gameRoom.addPlayer({ id: socket.id, pseudo });
+
+        io.to(room).emit('message', {
             username: 'SYSTEM',
             userId: 'system',
             content: `${pseudo} a rejoint la salle`,
             timestamp: new Date(),
         });
 
-        if (game.players.length === 2) {
-            game.status = 'playing';
-            game.board = Array(9).fill(null);
-            if (game.gameType === 'shifumi') {
-                game.players.forEach(p => {
-                    if (game.scores[p.id] === undefined) game.scores[p.id] = 0;
-                });
-            }
+        if (gameRoom.players.length === 2) {
+            gameRoom.game.onBothPlayersJoined?.(gameRoom.players);
         }
 
-        io.to(gameRoomId).emit("update_ui", game);
+        io.to(room).emit('update_ui', gameRoom.serialize());
+        manager.broadcastActiveRooms(io);
     });
 
-    socket.on('make_move', (moveData) => {
-        const room = Array.from(socket.rooms).find(r => games.has(r));
-        const game = games.get(room);
-        if (!game || game.status !== 'playing') return;
+    socket.on('make_move', async (moveData) => {
+        const room = [...socket.rooms].find(r => r !== socket.id);
+        const gameRoom = manager.getRoom(room);
+        if (!gameRoom) return;
 
-        if (game.gameType === 'tictactoe') {
-            handleTictactoe(game, moveData, socket.id, room, io);
-        } else if (game.gameType === 'shifumi') {
-            handleShifumi(game, moveData, socket.id, room, io);
+        const result = gameRoom.game.handleMove(moveData, socket.id, gameRoom.players);
+
+        if (result?.finished) {
+            await saveGameResult({ ...result, gameType: gameRoom.gameType });
+            const leaderboard = await getLeaderboard();
+            io.emit('leaderboard_update', leaderboard);
+            manager.broadcastActiveRooms(io);
         }
-    });
 
-    socket.on('leave_room', () => {
-        handleDeparture(socket, io);
-    });
-
-    socket.on('disconnecting', () => {
-        handleDeparture(socket, io);
+        io.to(room).emit('update_ui', gameRoom.serialize());
     });
 
     socket.on('message', (msg) => {
-        const room = Array.from(socket.rooms).find(r => games.has(r));
-        const game = games.get(room);
-        if (!game) return;
+        const room = [...socket.rooms].find(r => r !== socket.id);
+        if (!room) return;
 
-        const currentUser = game.players.find(p => p.id === socket.id);
-        if(!currentUser) return;
+        const gameRoom = manager.getRoom(room);
+        if (!gameRoom) return;
+
+        const currentUser = gameRoom.players.find(p => p.id === socket.id);
+        if (!currentUser) return;
 
         io.to(room).emit('message', {
-          username: currentUser.pseudo,
-          userId: socket.id,
-          content: msg,
-          timestamp: new Date(),
+            username: currentUser.pseudo,
+            userId: socket.id,
+            content: msg,
+            timestamp: new Date(),
         });
     });
-};
 
-function handleDeparture(socket, io) {
-    socket.rooms.forEach(room => {
-        const game = games.get(room);
-        if (game) {
-            const player = game.players.find(p => p.id === socket.id);
-            if (player) {
+    socket.on('disconnecting', () => {
+        socket.rooms.forEach(room => {
+            const gameRoom = manager.getRoom(room);
+            if (!gameRoom) return;
+
+            const player = gameRoom.players.find(p => p.id === socket.id);
+            if (!player) return;
+
+            if (gameRoom.status === 'playing') {
+                player.connected = false;
+                gameRoom.game.status = 'waiting_reconnect';
+
+                io.to(room).emit('message', {
+                    username: 'SYSTEM',
+                    userId: 'system',
+                    content: `${player.pseudo} s'est déconnecté — reconnexion en attente`,
+                    timestamp: new Date(),
+                });
+                io.to(room).emit('update_ui', gameRoom.serialize());
+                manager.broadcastActiveRooms(io);
+
+                gameRoom.startReconnectTimer(async () => {
+                    const connectedPlayer    = gameRoom.players.find(p => p.connected);
+                    const disconnectedPlayer = gameRoom.players.find(p => !p.connected);
+
+                    if (connectedPlayer && disconnectedPlayer) {
+                        await saveGameResult({
+                            winner: connectedPlayer.pseudo,
+                            loser: disconnectedPlayer.pseudo,
+                            gameType: gameRoom.gameType,
+                            scores: { forfait: true }
+                        });
+                        const leaderboard = await getLeaderboard();
+                        io.emit('leaderboard_update', leaderboard);
+                        io.to(room).emit('security_error',
+                            `${disconnectedPlayer.pseudo} a été déclaré forfait. Victoire pour ${connectedPlayer.pseudo} !`
+                        );
+                    }
+
+                    gameRoom.players = gameRoom.players.filter(p => p.connected);
+                    if (gameRoom.players.length === 0) {
+                        manager.deleteRoom(room);
+                    } else {
+                        gameRoom.game.reset();
+                        gameRoom.game.status = 'waiting';
+                        io.to(room).emit('update_ui', gameRoom.serialize());
+                    }
+                    manager.broadcastActiveRooms(io);
+                });
+
+            } else if (gameRoom.status === 'waiting_reconnect') {
+                gameRoom.clearReconnectTimer();
+                io.to(room).emit('message', {
+                    username: 'SYSTEM',
+                    userId: 'system',
+                    content: `${player.pseudo} a aussi quitté — partie annulée`,
+                    timestamp: new Date(),
+                });
+                manager.deleteRoom(room);
+                manager.broadcastActiveRooms(io);
+
+            } else {
                 io.to(room).emit('message', {
                     username: 'SYSTEM',
                     userId: 'system',
                     content: `${player.pseudo} a quitté la salle`,
                     timestamp: new Date(),
                 });
-            }
 
-            game.players = game.players.filter(p => p.id !== socket.id);
-
-            if (game.players.length === 0) {
-                games.delete(room);
-            } else {
-                if (game.status !== 'finished') {
-                    game.status = 'waiting';
-                    game.board = Array(9).fill(null);
-                    game.choices = {};
-                    game.scores = {}; 
-                    game.lastResult = null;
+                gameRoom.players = gameRoom.players.filter(p => p.id !== socket.id);
+                if (gameRoom.players.length === 0) {
+                    manager.deleteRoom(room);
+                } else {
+                    gameRoom.game.reset();
+                    gameRoom.game.status = 'waiting';
+                    io.to(room).emit('update_ui', gameRoom.serialize());
+                    io.to(room).emit('security_error', "L'adversaire a quitté la partie.");
                 }
-                
-                io.to(room).emit("update_ui", game);
+                manager.broadcastActiveRooms(io);
             }
-        }
+        });
     });
-}
-
-function handleTictactoe(game, index, socketId, room, io) {
-    const playerIndex = game.players.findIndex(p => p.id === socketId);
-    if (playerIndex !== game.turn || game.board[index] !== null) return;
-
-    const symbol = game.turn === 0 ? 'X' : 'O';
-    game.board[index] = symbol;
-    const result = checkWin(game.board);
-
-    if (result) {
-        if (result === 'draw') {
-            game.board = Array(9).fill(null);
-        } else {
-            game.scores[result]++;
-            game.board = Array(9).fill(null);
-
-            if (game.scores[result] === 3) {
-                game.status = 'finished';
-                game.lastResult = result;
-                const winnerIndex = result === 'X' ? 0 : 1;
-                const loserIndex = result === 'X' ? 1 : 0;
-                if(game.players[winnerIndex] && game.players[loserIndex]) {
-                    updateLeaderboard(game.players[winnerIndex].pseudo, game.players[loserIndex].pseudo, io);
-                }
-            }
-        }
-    } else {
-        game.turn = game.turn === 0 ? 1 : 0;
-    }
-    io.to(room).emit("update_ui", game);
-}
-
-function handleShifumi(game, choice, socketId, room, io) {
-    if (game.choices[socketId]) return;
-
-    game.choices[socketId] = choice;
-    io.to(room).emit("update_ui", game);
-
-    if (Object.keys(game.choices).length === 2) {
-        const p1Id = game.players[0].id;
-        const p2Id = game.players[1].id;
-        const c1 = game.choices[p1Id];
-        const c2 = game.choices[p2Id];
-
-        if (c1 !== c2) {
-            const winsAgainst = { pierre: 'ciseaux', feuille: 'pierre', ciseaux: 'feuille' };
-            if (winsAgainst[c1] === c2) {
-                game.scores[p1Id]++;
-            } else {
-                game.scores[p2Id]++;
-            }
-        }
-
-        const winnerId = Object.keys(game.scores).find(id => game.scores[id] === 3);
-
-        if (winnerId) {
-            game.status = 'finished';
-            game.lastResult = winnerId;
-            const winner = game.players.find(p => p.id === winnerId);
-            const loser = game.players.find(p => p.id !== winnerId);
-            if(winner && loser) {
-                updateLeaderboard(winner.pseudo, loser.pseudo, io);
-            }
-            io.to(room).emit("update_ui", game);
-        } else {
-            setTimeout(() => {
-                game.choices = {};
-                io.to(room).emit("update_ui", game);
-            }, 2000);
-            io.to(room).emit("update_ui", game);
-        }
-    }
-}
+};

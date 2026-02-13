@@ -21,9 +21,9 @@ Duel simultané avec révélation dramatique des choix. Premier à 3 manches gag
 - **Multijoueur temps réel** : synchronisation instantanée entre joueurs
 - **9 salles thématiques** : chaque planète est un dojo spatial
 - **Sécurité des salles** : maximum 2 joueurs par partie, verrouillage automatique
-- **Classement en direct** : leaderboard global partagé entre tous les joueurs
-- **Persistance locale** : sauvegarde du pseudo et des stats (victoires/défaites)
-- **Synchronisation des stats** : les stats locales alimentent le classement global à chaque connexion
+- **Classement en direct** : leaderboard par jeu et général, mis à jour en temps réel via Socket.io
+- **Persistance MongoDB** : résultats des parties stockés dans MongoDB Atlas (victoires et défaites)
+- **Chat en jeu** : messagerie temps réel entre joueurs pendant les parties
 
 ## Identité visuelle
 

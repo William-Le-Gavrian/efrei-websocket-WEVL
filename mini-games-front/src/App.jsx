@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 import { Trophy, User, Gamepad2, LogOut, Medal, Skull } from 'lucide-react';
 import Lobby from './components/Lobby';
@@ -7,6 +7,7 @@ import Shifumi from './components/Shifumi';
 import Chat from "./components/Chat";
 import PseudoEntry from './components/PseudoEntry';
 import Classement from './components/Classement';
+import Hangman from "./components/Hangman.jsx";
 
 const socket = io("http://localhost:3001");
 
@@ -15,117 +16,112 @@ function App() {
   const [gameState, setGameState] = useState(null);
   const [myPseudo, setMyPseudo] = useState("");
   const [currentGame, setCurrentGame] = useState("");
-  const [stats, setStats] = useState({ wins: 0, losses: 0 });
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [activeRooms, setActiveRooms] = useState([]);
+  const [pendingSession, setPendingSession] = useState(() => {
+    const saved = localStorage.getItem("pendingSession");
+    return saved ? JSON.parse(saved) : null;
+  });
   const [showClassement, setShowClassement] = useState(false);
   const [messages, setMessages] = useState([]);
-  const processedGameRef = useRef(null);
-  const isJoiningRef = useRef(false);
 
   useEffect(() => {
     const savedPseudo = localStorage.getItem("player_pseudo");
     if (savedPseudo) {
       setMyPseudo(savedPseudo);
-      const savedStats = localStorage.getItem(`stats_${savedPseudo.toLowerCase()}`);
-      if (savedStats) {
-        const s = JSON.parse(savedStats);
-        setStats(s);
-        socket.emit('sync_stats', { pseudo: savedPseudo, ...s });
+    }
+
+    const onConnect = () => {
+      socket.emit("get_leaderboard");
+      socket.emit("get_active_rooms");
+
+      if (savedPseudo) {
+        socket.emit("check_session", savedPseudo);
       }
+    };
+
+    socket.on("connect", onConnect);
+
+    if (socket.connected) {
+      onConnect();
     }
 
     socket.on("update_ui", (state) => {
-      setGameState((prevState) => {
-        const gameId = `${state.roomName}_${state.gameType}_${state.status}`;
+      setGameState(state);
+      if (state.status === 'finished') {
+        localStorage.removeItem("pendingSession");
+        setPendingSession(null);
+      }
+    });
 
-        if (state.status === 'finished' && prevState?.status !== 'finished' && state.lastResult !== 'draw' && processedGameRef.current !== gameId) {
-          processedGameRef.current = gameId;
-          
-          let iWon = false;
-          if (state.gameType === 'tictactoe') {
-            const myIndex = state.players.findIndex(p => p.id === socket.id);
-            const mySymbol = myIndex === 0 ? 'X' : 'O';
-            iWon = state.lastResult === mySymbol;
-          } else {
-            iWon = state.lastResult === socket.id;
-          }
+    socket.on("leaderboard_update", (data) => {
+      setLeaderboard(data);
+    });
 
-          setStats(prev => {
-            const newStats = iWon
-              ? { ...prev, wins: prev.wins + 1 }
-              : { ...prev, losses: prev.losses + 1 };
-            
-            const currentP = localStorage.getItem("player_pseudo");
-            if (currentP) {
-              localStorage.setItem(`stats_${currentP.toLowerCase()}`, JSON.stringify(newStats));
-            }
-            return newStats;
-          });
-        }
+    socket.on("active_rooms_update", (rooms) => {
+      setActiveRooms(rooms);
+      const saved = JSON.parse(localStorage.getItem("pendingSession"));
+      if (saved && !rooms.includes(saved.room)) {
+        localStorage.removeItem("pendingSession");
+        setPendingSession(null);
+      }
+    });
 
-        if (state.status === 'waiting') {
-          processedGameRef.current = null;
-        }
+    socket.on("session_found", ({ room, gameType }) => {
+      const pseudo = localStorage.getItem("player_pseudo") || "";
+      const session = { room, gameType, pseudo };
+      localStorage.setItem("pendingSession", JSON.stringify(session));
+      setPendingSession(session);
+    });
 
-        return state;
-      });
+    socket.on("no_session_found", () => {
+      localStorage.removeItem("pendingSession");
+      setPendingSession(null);
     });
 
     socket.on("security_error", (msg) => {
-      if (isJoiningRef.current) return;
       alert(msg);
       setIsJoined(false);
       setGameState(null);
+      setCurrentGame("");
+      localStorage.removeItem("pendingSession");
+      setPendingSession(null);
     });
 
     return () => {
+      socket.off("connect", onConnect);
       socket.off("update_ui");
+      socket.off("leaderboard_update");
+      socket.off("active_rooms_update");
+      socket.off("session_found");
+      socket.off("no_session_found");
       socket.off("security_error");
     };
   }, []);
 
   useEffect(() => {
-    if (isJoined && !gameState) {
-      const timer = setTimeout(() => {
-        setIsJoined(false);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [isJoined, gameState]);
-
-  useEffect(() => {
-    const handleMessage = (msg) => {
+    socket.on('message', (msg) => {
       setMessages(prev => [...prev, msg]);
-    };
-    socket.on('message', handleMessage);
-    return () => socket.off("message", handleMessage);
+    });
+    return () => socket.off("message");
   }, []);
+
+  const myWins = leaderboard.filter(p => p.pseudo === myPseudo).reduce((sum, p) => sum + p.wins, 0);
+  const myLosses = leaderboard.filter(p => p.pseudo === myPseudo).reduce((sum, p) => sum + p.losses, 0);
 
   const savePseudo = (pseudo) => {
     localStorage.setItem("player_pseudo", pseudo);
     setMyPseudo(pseudo);
-    const savedStats = localStorage.getItem(`stats_${pseudo.toLowerCase()}`);
-    const s = savedStats ? JSON.parse(savedStats) : { wins: 0, losses: 0 };
-    setStats(s);
-    socket.emit('sync_stats', { pseudo, ...s });
   };
 
   const handleJoin = (pseudo, room, gameType) => {
-    isJoiningRef.current = true;
-    setGameState(null);
-    setMessages([]);
     setCurrentGame(gameType);
-    setIsJoined(true);
     socket.emit("join_game", { room, pseudo, gameType });
-    setTimeout(() => {
-      isJoiningRef.current = false;
-    }, 1500);
-  };
-
-  const handleLeaveGame = () => {
-    socket.emit('leave_room');
-    setIsJoined(false);
-    setGameState(null);
-    setCurrentGame("");
+    setIsJoined(true);
+    setMessages([]);
+    const session = { room, gameType, pseudo };
+    localStorage.setItem("pendingSession", JSON.stringify(session));
+    setPendingSession(session);
   };
 
   const handleMove = (index) => {
@@ -134,6 +130,7 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem("player_pseudo");
+    setPendingSession(null);
     window.location.reload();
   };
 
@@ -141,6 +138,8 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen bg-[#020617] font-gaming text-slate-200 overflow-hidden">
+
+      {/* BACKGROUND DECORATIF */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-[#020617]">
         <div className="absolute inset-0 opacity-60"
           style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '50px 50px' }}
@@ -164,11 +163,11 @@ function App() {
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/10 rounded-full border border-yellow-500/20">
               <Trophy size={14} className="text-yellow-500" />
-              <span className="text-xs font-bold text-yellow-500">{stats.wins}</span>
+              <span className="text-xs font-bold text-yellow-500">{myWins}</span>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 rounded-full border border-red-500/20">
               <Skull size={14} className="text-red-400" />
-              <span className="text-xs font-bold text-red-400">{stats.losses}</span>
+              <span className="text-xs font-bold text-red-400">{myLosses}</span>
             </div>
             <button onClick={() => { setShowClassement(prev => !prev); setIsJoined(false); }} className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 rounded-full border border-purple-500/20 hover:bg-purple-500/20 transition-all cursor-pointer">
               <Medal size={14} className="text-purple-400" />
@@ -181,55 +180,32 @@ function App() {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 overflow-y-auto relative z-10 custom-scrollbar">
-          <div className="p-6 h-full">
-            {showClassement ? (
-              <div className="max-w-4xl mx-auto"><Classement currentPseudo={myPseudo} socket={socket} /></div>
-            ) : !isJoined ? (
-              <div className="max-w-4xl mx-auto"><Lobby onJoin={handleJoin} initialPseudo={myPseudo} /></div>
-            ) : (
-              <div className="w-full h-full max-w-5xl mx-auto">
-                {gameState ? (
-                  <div className="animate-in fade-in zoom-in duration-300">
-                    {currentGame === "tictactoe" ? (
-                      <Tictactoe 
-                        gameState={gameState} 
-                        onMove={handleMove} 
-                        myPseudo={myPseudo} 
-                        socketId={socket.id} 
-                        onLeave={handleLeaveGame}
-                      />
-                    ) : (
-                      <Shifumi 
-                        gameState={gameState} 
-                        onMove={handleMove} 
-                        myPseudo={myPseudo} 
-                        socketId={socket.id} 
-                        onLeave={handleLeaveGame}
-                      />
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-slate-500 italic">
-                    Synchronisation orbitale...
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </main>
-
-        {isJoined && !showClassement && (
-          <aside className="w-80 border-l border-white/5 bg-slate-950/40 backdrop-blur-md hidden lg:flex flex-col shrink-0 animate-in slide-in-from-right duration-500">
-            <Chat 
-              messages={messages} 
-              socket={socket} 
-              socketId={socket.id} 
+      <main className="relative z-10 py-10 px-4">
+        {showClassement ? (
+          <Classement leaderboard={leaderboard} currentPseudo={myPseudo} socket={socket} />
+        ) : !isJoined ? (
+          <Lobby onJoin={handleJoin} initialPseudo={myPseudo} leaderboard={leaderboard} activeRooms={activeRooms} pendingSession={pendingSession} />
+        ) : (
+          <div className="flex">
+            <div className="animate-in fade-in zoom-in duration-300 flex-2">
+              {currentGame === "tictactoe" && (
+                  <Tictactoe gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
+              )}
+              {currentGame === "shifumi" && (
+                  <Shifumi gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
+              )}
+              {currentGame === "hangman" && (
+                  <Hangman gameState={gameState} socket={socket} />
+              )}
+            </div>
+            <Chat
+              messages={messages}
+              socket={socket}
+              socketId={socket.id}
             />
-          </aside>
+          </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }
