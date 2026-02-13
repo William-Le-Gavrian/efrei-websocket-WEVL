@@ -135,8 +135,6 @@ export const roomHandlers = (io, socket) => {
 
             if (game.gameType === 'tictactoe' && game.players.length === 1) {
                 game.scores = { X: 0, O: 0 };
-                // game.board = Array(9).fill(null);
-                // game.turn = 0;
             }
         }
 
@@ -174,10 +172,6 @@ export const roomHandlers = (io, socket) => {
         } else if ('hangman' === game.gameType) {
             handleHangman(game, room, socket.id, io, moveData);
         }
-    });
-
-    socket.on('leave_room', () => {
-        handleDeparture(socket, io);
     });
 
     socket.on('disconnecting', () => {

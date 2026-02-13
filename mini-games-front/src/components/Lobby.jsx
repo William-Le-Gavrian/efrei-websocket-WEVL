@@ -18,16 +18,15 @@ function Lobby({ onJoin, initialPseudo, leaderboard, activeRooms, pendingSession
   const availableRooms = allRooms.filter(r => !activeRooms.includes(r));
 
   const canResume = pendingSession && pendingSession.pseudo === initialPseudo;
-  console.log("Pending session:", pendingSession);
 
   const selectedRoom = (room && availableRooms.includes(room)) ? room : (availableRooms[0] || "");
-  
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
     const cleanRoom = room.trim().toLowerCase().replace(/\s+/g, '-');
 
-    if (selectedRoom) onJoin(initialPseudo, selectedRoom, gameType); }
+    if (selectedRoom) onJoin(initialPseudo, selectedRoom, gameType);
   };
 
   return (
@@ -36,16 +35,16 @@ function Lobby({ onJoin, initialPseudo, leaderboard, activeRooms, pendingSession
 
         {/* Titre et Stats */}
         <div className="mb-8 text-center">
-            <h1 className="text-4xl font-black text-white tracking-tighter uppercase">
-              {{
-                tictactoe: "TIC TAC TOE",
-                shifumi: "SHI-FU-MI",
-                hangman: "HANGMAN"
-              }[gameType]}
-            </h1>
-            <p className="text-blue-500 font-bold text-xs mt-2 italic tracking-widest">
-                JOUEUR : {initialPseudo.toUpperCase()} | {myWins}W - {myLosses}L
-            </p>
+          <h1 className="text-4xl font-black text-white tracking-tighter uppercase">
+            {{
+              tictactoe: "TIC TAC TOE",
+              shifumi: "SHI-FU-MI",
+              hangman: "HANGMAN"
+            }[gameType]}
+          </h1>
+          <p className="text-blue-500 font-bold text-xs mt-2 italic tracking-widest">
+            JOUEUR : {initialPseudo.toUpperCase()} | {myWins}W - {myLosses}L
+          </p>
         </div>
 
         {/* BOUTON REPRENDRE PARTIE EN COURS */}
@@ -59,9 +58,9 @@ function Lobby({ onJoin, initialPseudo, leaderboard, activeRooms, pendingSession
             Reprendre — {pendingSession.gameType.toUpperCase()} sur {pendingSession.room}
           </button>
         )}
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
-          
+
           {/* SÉLECTEUR DE JEU */}
           <div className="flex p-1 bg-slate-800/50 rounded-2xl gap-1 border border-white/5">
             <button type="button" onClick={() => setGameType("tictactoe")}
@@ -73,7 +72,7 @@ function Lobby({ onJoin, initialPseudo, leaderboard, activeRooms, pendingSession
               SHIFUMI
             </button>
             <button type="button" onClick={() => setGameType("hangman")}
-                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${gameType === 'hangman' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>
+              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${gameType === 'hangman' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>
               HANGMAN
             </button>
           </div>
@@ -109,11 +108,10 @@ function Lobby({ onJoin, initialPseudo, leaderboard, activeRooms, pendingSession
 
           <button
             disabled={availableRooms.length === 0}
-            className={`w-full p-5 text-white font-black rounded-2xl transition-all active:scale-95 shadow-lg uppercase italic tracking-widest ${
-              availableRooms.length > 0
+            className={`w-full p-5 text-white font-black rounded-2xl transition-all active:scale-95 shadow-lg uppercase italic tracking-widest ${availableRooms.length > 0
                 ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/40'
                 : 'bg-slate-700 cursor-not-allowed opacity-50'
-            }`}
+              }`}
           >
             Atterissage sur la Planète
           </button>
@@ -126,18 +124,16 @@ function Lobby({ onJoin, initialPseudo, leaderboard, activeRooms, pendingSession
               <Trophy size={16} className="text-yellow-500" />
               <h2 className="text-sm font-black uppercase tracking-widest text-yellow-500">Classement {gameType === 'tictactoe' ? 'Tic Tac Toe' : 'Shifumi'}</h2>
             </div>
-            <div className="space-y-2"> 
+            <div className="space-y-2">
               {gameLeaderboard.map((player, index) => (
                 <div key={player.pseudo}
-                  className={`flex items-center justify-between p-3 rounded-xl border ${
-                    player.pseudo === initialPseudo
+                  className={`flex items-center justify-between p-3 rounded-xl border ${player.pseudo === initialPseudo
                       ? 'bg-blue-600/20 border-blue-500/30'
                       : 'bg-slate-800/50 border-white/5'
-                  }`}>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-xs font-black w-6 text-center ${
-                      index === 0 ? 'text-yellow-500' : index === 1 ? 'text-slate-300' : index === 2 ? 'text-orange-400' : 'text-slate-500'
                     }`}>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs font-black w-6 text-center ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-slate-300' : index === 2 ? 'text-orange-400' : 'text-slate-500'
+                      }`}>
                       #{index + 1}
                     </span>
                     <span className="text-sm font-bold text-white">{player.pseudo}</span>

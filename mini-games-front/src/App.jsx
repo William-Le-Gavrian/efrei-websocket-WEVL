@@ -60,6 +60,11 @@ function App() {
 
     socket.on("active_rooms_update", (rooms) => {
       setActiveRooms(rooms);
+      const saved = JSON.parse(localStorage.getItem("pendingSession"));
+      if (saved && !rooms.includes(saved.room)) {
+        localStorage.removeItem("pendingSession");
+        setPendingSession(null);
+      }
     });
 
     socket.on("session_found", ({ room, gameType }) => {
