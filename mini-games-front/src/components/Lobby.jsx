@@ -4,6 +4,17 @@ import { Trophy, RotateCcw } from 'lucide-react';
 function Lobby({ onJoin, initialPseudo, leaderboard, activeRooms, pendingSession }) {
   const [room, setRoom] = useState("");
   const [gameType, setGameType] = useState("tictactoe");
+  let gameName = "Tic Tac Toe";
+  switch (gameType) {
+    case "shifumi":
+      gameName = "Shifumi";
+      break;
+    case "hangman":
+      gameName = "Hangman";
+      break;
+    default:
+      gameName = "Tic Tac Toe";
+  }
 
   const gameLeaderboard = leaderboard.filter(p => p.gameType === gameType);
   const myWins = gameLeaderboard.find(p => p.pseudo === initialPseudo)?.wins || 0;
@@ -109,8 +120,8 @@ function Lobby({ onJoin, initialPseudo, leaderboard, activeRooms, pendingSession
           <button
             disabled={availableRooms.length === 0}
             className={`w-full p-5 text-white font-black rounded-2xl transition-all active:scale-95 shadow-lg uppercase italic tracking-widest ${availableRooms.length > 0
-                ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/40'
-                : 'bg-slate-700 cursor-not-allowed opacity-50'
+              ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/40'
+              : 'bg-slate-700 cursor-not-allowed opacity-50'
               }`}
           >
             Atterissage sur la Planète
@@ -122,14 +133,14 @@ function Lobby({ onJoin, initialPseudo, leaderboard, activeRooms, pendingSession
           <div className="mt-8">
             <div className="flex items-center gap-2 mb-4">
               <Trophy size={16} className="text-yellow-500" />
-              <h2 className="text-sm font-black uppercase tracking-widest text-yellow-500">Classement {gameType === 'tictactoe' ? 'Tic Tac Toe' : 'Shifumi'}</h2>
+              <h2 className="text-sm font-black uppercase tracking-widest text-yellow-500">Classement {gameName}</h2>
             </div>
             <div className="space-y-2">
               {gameLeaderboard.map((player, index) => (
                 <div key={player.pseudo}
                   className={`flex items-center justify-between p-3 rounded-xl border ${player.pseudo === initialPseudo
-                      ? 'bg-blue-600/20 border-blue-500/30'
-                      : 'bg-slate-800/50 border-white/5'
+                    ? 'bg-blue-600/20 border-blue-500/30'
+                    : 'bg-slate-800/50 border-white/5'
                     }`}>
                   <div className="flex items-center gap-3">
                     <span className={`text-xs font-black w-6 text-center ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-slate-300' : index === 2 ? 'text-orange-400' : 'text-slate-500'

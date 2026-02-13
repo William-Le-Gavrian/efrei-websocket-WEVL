@@ -389,14 +389,21 @@ async function handleHangman(game, room, socketId, io, data) {
         if ('word' === data.type) {
             guessWord(game, data.value);
         }
-    } else if ('finished' === game.status) {
-        await saveGameResult({
-            winner: game.players[winnerIndex].pseudo,
-            loser: game.players[loserIndex].pseudo,
-            gameType: 'hangman'
-        });
-        const leaderboard = await getLeaderboard();
-        io.emit('leaderboard_update', leaderboard);
+
+        if ('finished' === game.status) {
+            const winnerId = game.lastResult;
+            const winnerIndex = game.players.findIndex(p => p.id === winnerId);
+            const loserIndex = winnerIndex === 0 ? 1 : 0;
+            await saveGameResult({
+                winner: game.players[winnerIndex].pseudo,
+                loser: game.players[loserIndex].pseudo,
+                gameType: 'hangman'
+            });
+            const leaderboard = await getLeaderboard();
+            io.emit('leaderboard_update', leaderboard);
+        }
     }
+
+    io.to(room).emit("update_ui", game);
     broadcastActiveRooms(io);
 }
