@@ -1,19 +1,26 @@
 import { useState } from 'react';
-import { Trophy } from 'lucide-react';
+import { Trophy, RotateCcw } from 'lucide-react';
 
-function Lobby({ onJoin, initialPseudo, leaderboard }) {
-  const [room, setRoom] = useState("Mercure");
+function Lobby({ onJoin, initialPseudo, leaderboard, activeRooms, pendingSession }) {
+  const [room, setRoom] = useState("");
   const [gameType, setGameType] = useState("tictactoe");
 
   const gameLeaderboard = leaderboard.filter(p => p.gameType === gameType);
   const myWins = gameLeaderboard.find(p => p.pseudo === initialPseudo)?.wins || 0;
   const myLosses = gameLeaderboard.find(p => p.pseudo === initialPseudo)?.losses || 0;
 
-  const rooms = [
+  const allRooms = [
     "Mercure", "Vénus", "Terre",
     "Mars", "Jupiter", "Saturne",
     "Uranus", "Neptune", "Pluto is a planet !!"
   ];
+
+  const availableRooms = allRooms.filter(r => !activeRooms.includes(r));
+
+  const canResume = pendingSession && pendingSession.pseudo === initialPseudo;
+  console.log("Pending session:", pendingSession);
+
+  const selectedRoom = (room && availableRooms.includes(room)) ? room : (availableRooms[0] || "");
 
   return (
     <div className="flex items-center justify-center p-4 font-gaming">
@@ -29,7 +36,19 @@ function Lobby({ onJoin, initialPseudo, leaderboard }) {
             </p>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); onJoin(initialPseudo, room, gameType); }} className="space-y-6">
+        {/* BOUTON REPRENDRE PARTIE EN COURS */}
+        {canResume && (
+          <button
+            type="button"
+            onClick={() => onJoin(initialPseudo, pendingSession.room, pendingSession.gameType)}
+            className="w-full mb-6 p-4 bg-green-600 hover:bg-green-500 text-white font-black rounded-2xl transition-all active:scale-95 shadow-lg shadow-green-900/40 uppercase tracking-widest flex items-center justify-center gap-3"
+          >
+            <RotateCcw size={18} />
+            Reprendre — {pendingSession.gameType.toUpperCase()} sur {pendingSession.room}
+          </button>
+        )}
+
+        <form onSubmit={(e) => { e.preventDefault(); if (selectedRoom) onJoin(initialPseudo, selectedRoom, gameType); }} className="space-y-6">
 
           {/* SÉLECTEUR DE JEU */}
           <div className="flex p-1 bg-slate-800/50 rounded-2xl gap-1 border border-white/5">
@@ -47,24 +66,39 @@ function Lobby({ onJoin, initialPseudo, leaderboard }) {
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-500 uppercase ml-1 tracking-widest">Sélectionner une Planète</label>
             <div className="relative">
-              <select
-                value={room}
-                onChange={(e) => setRoom(e.target.value)}
-                className="w-full p-4 bg-slate-800 text-white rounded-2xl border-2 border-transparent focus:border-blue-500 focus:outline-none transition-all appearance-none cursor-pointer font-bold"
-              >
-                {rooms.map((r) => (
-                  <option key={r} value={r} className="bg-slate-900 text-white">
-                    {r.replace('-', ' ')}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500">
-                ▼
-              </div>
+              {availableRooms.length > 0 ? (
+                <select
+                  value={selectedRoom}
+                  onChange={(e) => setRoom(e.target.value)}
+                  className="w-full p-4 bg-slate-800 text-white rounded-2xl border-2 border-transparent focus:border-blue-500 focus:outline-none transition-all appearance-none cursor-pointer font-bold"
+                >
+                  {availableRooms.map((r) => (
+                    <option key={r} value={r} className="bg-slate-900 text-white">
+                      {r}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="w-full p-4 bg-slate-800/50 text-slate-500 rounded-2xl border-2 border-transparent font-bold text-center">
+                  Toutes les planètes sont occupées
+                </div>
+              )}
+              {availableRooms.length > 0 && (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500">
+                  ▼
+                </div>
+              )}
             </div>
           </div>
 
-          <button className="w-full p-5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl transition-all active:scale-95 shadow-lg shadow-blue-900/40 uppercase italic tracking-widest">
+          <button
+            disabled={availableRooms.length === 0}
+            className={`w-full p-5 text-white font-black rounded-2xl transition-all active:scale-95 shadow-lg uppercase italic tracking-widest ${
+              availableRooms.length > 0
+                ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/40'
+                : 'bg-slate-700 cursor-not-allowed opacity-50'
+            }`}
+          >
             Atterissage sur la Planète
           </button>
         </form>
@@ -76,7 +110,7 @@ function Lobby({ onJoin, initialPseudo, leaderboard }) {
               <Trophy size={16} className="text-yellow-500" />
               <h2 className="text-sm font-black uppercase tracking-widest text-yellow-500">Classement {gameType === 'tictactoe' ? 'Tic Tac Toe' : 'Shifumi'}</h2>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2"> 
               {gameLeaderboard.map((player, index) => (
                 <div key={player.pseudo}
                   className={`flex items-center justify-between p-3 rounded-xl border ${

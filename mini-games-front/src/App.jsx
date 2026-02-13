@@ -16,6 +16,11 @@ function App() {
   const [myPseudo, setMyPseudo] = useState("");
   const [currentGame, setCurrentGame] = useState("");
   const [leaderboard, setLeaderboard] = useState([]);
+  const [activeRooms, setActiveRooms] = useState([]);
+  const [pendingSession, setPendingSession] = useState(() => {
+    const saved = localStorage.getItem("pendingSession");
+    return saved ? JSON.parse(saved) : null;
+  });
   const [showClassement, setShowClassement] = useState(false);
   const [messages, setMessages] = useState([]);
 
@@ -25,16 +30,47 @@ function App() {
       setMyPseudo(savedPseudo);
     }
 
-    socket.on("connect", () => {
+    const onConnect = () => {
       socket.emit("get_leaderboard");
-    });
+      socket.emit("get_active_rooms");
+
+      if (savedPseudo) {
+        socket.emit("check_session", savedPseudo);
+      }
+    };
+
+    socket.on("connect", onConnect);
+
+    if (socket.connected) {
+      onConnect();
+    }
 
     socket.on("update_ui", (state) => {
       setGameState(state);
+      if (state.status === 'finished') {
+        localStorage.removeItem("pendingSession");
+        setPendingSession(null);
+      }
     });
 
     socket.on("leaderboard_update", (data) => {
       setLeaderboard(data);
+    });
+
+    socket.on("active_rooms_update", (rooms) => {
+      setActiveRooms(rooms);
+    });
+
+    socket.on("session_found", ({ room, gameType }) => {
+      const pseudo = localStorage.getItem("player_pseudo") || "";
+      const session = { room, gameType, pseudo };
+      localStorage.setItem("pendingSession", JSON.stringify(session));
+      setPendingSession(session);
+    });
+
+    socket.on("no_session_found", () => {
+      localStorage.removeItem("pendingSession");
+      setPendingSession(null);
     });
 
     socket.on("security_error", (msg) => {
@@ -42,12 +78,17 @@ function App() {
       setIsJoined(false);
       setGameState(null);
       setCurrentGame("");
+      localStorage.removeItem("pendingSession");
+      setPendingSession(null);
     });
 
     return () => {
-      socket.off("connect");
+      socket.off("connect", onConnect);
       socket.off("update_ui");
       socket.off("leaderboard_update");
+      socket.off("active_rooms_update");
+      socket.off("session_found");
+      socket.off("no_session_found");
       socket.off("security_error");
     };
   }, []);
@@ -72,6 +113,9 @@ function App() {
     socket.emit("join_game", { room, pseudo, gameType });
     setIsJoined(true);
     setMessages([]);
+    const session = { room, gameType, pseudo };
+    localStorage.setItem("pendingSession", JSON.stringify(session));
+    setPendingSession(session);
   };
 
   const handleMove = (index) => {
@@ -80,6 +124,7 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem("player_pseudo");
+    setPendingSession(null);
     window.location.reload();
   };
 
@@ -141,7 +186,7 @@ function App() {
             {showClassement ? (
               <div className="max-w-4xl mx-auto"><Classement leaderboard={leaderboard} currentPseudo={myPseudo} /></div>
             ) : !isJoined ? (
-              <div className="max-w-4xl mx-auto"><Lobby onJoin={handleJoin} initialPseudo={myPseudo} leaderboard={leaderboard} /></div>
+              <div className="max-w-4xl mx-auto"><Lobby onJoin={handleJoin} initialPseudo={myPseudo} leaderboard={leaderboard} activeRooms={activeRooms} pendingSession={pendingSession} /></div>
             ) : (
               <div className="w-full h-full max-w-5xl mx-auto">
                 {gameState ? (

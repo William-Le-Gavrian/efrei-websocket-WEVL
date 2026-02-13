@@ -93,8 +93,10 @@ function Tictactoe({ gameState, onMove, myPseudo, socketId }) {
                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
              </button>
           </div>
+        ) : status === 'waiting_reconnect' ? (
+          <div className="text-rose-500 font-black italic tracking-widest animate-pulse uppercase">Le pilote adverse est déconnecté...</div>
         ) : (
-          <div className="text-blue-500 font-black italic tracking-widest animate-bounce uppercase">En attente d'un second pilote...</div>
+          <div className="text-blue-500 font-black italic tracking-widest animate-bounce uppercase">En attente d'un joueur...</div>
         )}
       </div>
 

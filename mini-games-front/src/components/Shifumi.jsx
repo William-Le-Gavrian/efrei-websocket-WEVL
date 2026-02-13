@@ -67,7 +67,14 @@ function Shifumi({ gameState, onMove, myPseudo, socketId }) {
         {status === 'waiting' && (
           <div className="text-center space-y-6 animate-pulse">
             <div className="text-7xl">⏳</div>
-            <p className="text-slate-400 font-bold tracking-[0.3em] text-sm uppercase italic">En attente d'un signal ennemi...</p>
+            <p className="text-slate-400 font-bold tracking-[0.3em] text-sm uppercase italic">En attente d'un joueur...</p>
+          </div>
+        )}
+
+        {status === 'waiting_reconnect' && (
+          <div className="text-center space-y-6 animate-pulse">
+            <div className="text-7xl">📡</div>
+            <p className="text-rose-500 font-bold tracking-[0.3em] text-sm uppercase italic">Le pilote adverse est déconnecté...</p>
           </div>
         )}
 

@@ -4,6 +4,22 @@ import { saveGameResult, getLeaderboard } from '../../services/mongodb.js';
 
 const games = new Map();
 
+// Helper : liste des salles occupées (seulement les parties à 2 joueurs en cours)
+function getActiveRooms() {
+    const active = [];
+    for (const [room, game] of games) {
+        if (game.status === 'playing' || game.status === 'waiting_reconnect') {
+            active.push(room);
+        }
+    }
+    return active;
+}
+
+// Helper : broadcast les salles occupées à tous les clients
+function broadcastActiveRooms(io) {
+    io.emit('active_rooms_update', getActiveRooms());
+}
+
 export const roomHandlers = (io, socket) => {
 
     socket.on('get_leaderboard', async () => {
@@ -11,9 +27,62 @@ export const roomHandlers = (io, socket) => {
         socket.emit('leaderboard_update', leaderboard);
     });
 
+    socket.on('get_active_rooms', () => {
+        socket.emit('active_rooms_update', getActiveRooms());
+    });
+
+    // ÉVÉNEMENT : VÉRIFIER SI LE JOUEUR A UNE PARTIE EN ATTENTE
+    socket.on('check_session', (pseudo) => {
+        for (const [room, game] of games) {
+            if (game.status === 'playing' || game.status === 'waiting_reconnect') {
+                const player = game.players.find(p => p.pseudo === pseudo);
+                if (player) {
+                    socket.emit('session_found', { room, gameType: game.gameType });
+                    return;
+                }
+            }
+        }
+        socket.emit('no_session_found');
+    });
+
     // ÉVÉNEMENT : REJOINDRE UNE SALLE
     socket.on('join_game', ({ room, pseudo, gameType }) => {
         const existingGame = games.get(room);
+
+        // --- RECONNEXION : joueur déconnecté qui revient ---
+        if (existingGame && existingGame.status === 'waiting_reconnect') {
+            const disconnectedPlayer = existingGame.players.find(p => p.pseudo === pseudo && !p.connected);
+            if (disconnectedPlayer) {
+                const oldId = disconnectedPlayer.id;
+                clearTimeout(existingGame.reconnectTimeout);
+                disconnectedPlayer.id = socket.id;
+                disconnectedPlayer.connected = true;
+                existingGame.status = 'playing';
+
+                if (existingGame.gameType === 'shifumi') {
+                    if (existingGame.scores[oldId] !== undefined) {
+                        existingGame.scores[socket.id] = existingGame.scores[oldId];
+                        delete existingGame.scores[oldId];
+                    }
+                    if (existingGame.choices[oldId] !== undefined) {
+                        existingGame.choices[socket.id] = existingGame.choices[oldId];
+                        delete existingGame.choices[oldId];
+                    }
+                }
+
+                socket.join(room);
+                console.log(`🔄 ${pseudo} s'est reconnecté à la salle : ${room}`);
+                io.to(room).emit('message', {
+                    username: 'SYSTEM',
+                    userId: 'system',
+                    content: `${pseudo} s'est reconnecté`,
+                    timestamp: new Date(),
+                });
+                io.to(room).emit("update_ui", existingGame);
+                broadcastActiveRooms(io);
+                return;
+            }
+        }
 
         if (existingGame && existingGame.gameType !== gameType) {
             socket.emit("security_error", `Désolé, cette planète est réservée à un duel de ${existingGame.gameType.toUpperCase()}.`);
@@ -48,7 +117,7 @@ export const roomHandlers = (io, socket) => {
         const game = games.get(room);
 
         if (!game.players.find(p => p.id === socket.id)) {
-            game.players.push({ id: socket.id, pseudo: pseudo });
+            game.players.push({ id: socket.id, pseudo: pseudo, connected: true });
 
             if (game.gameType === 'tictactoe' && game.players.length === 1) {
                 game.scores = { X: 0, O: 0 };
@@ -71,6 +140,7 @@ export const roomHandlers = (io, socket) => {
         }
 
         io.to(room).emit("update_ui", game);
+        broadcastActiveRooms(io);
     });
 
     // ÉVÉNEMENT : FAIRE UN MOUVEMENT
@@ -93,26 +163,79 @@ export const roomHandlers = (io, socket) => {
             const game = games.get(room);
             if (game) {
                 const player = game.players.find(p => p.id === socket.id);
-                if (player) {
+                if (!player) return;
+
+                if (game.status === 'playing') {
+                    player.connected = false;
+                    game.status = 'waiting_reconnect';
+
+                    io.to(room).emit('message', {
+                        username: 'SYSTEM',
+                        userId: 'system',
+                        content: `${player.pseudo} s'est déconnecté — reconnexion en attente`,
+                        timestamp: new Date(),
+                    });
+                    io.to(room).emit("update_ui", game);
+                    broadcastActiveRooms(io);
+
+                    game.reconnectTimeout = setTimeout(async () => {
+                        const connectedPlayer = game.players.find(p => p.connected);
+                        const disconnectedPlayer = game.players.find(p => !p.connected);
+
+                        if (connectedPlayer && disconnectedPlayer) {
+                            await saveGameResult({
+                                winner: connectedPlayer.pseudo,
+                                loser: disconnectedPlayer.pseudo,
+                                gameType: game.gameType,
+                                scores: { forfait: true }
+                            });
+                            const leaderboard = await getLeaderboard();
+                            io.emit('leaderboard_update', leaderboard);
+                            io.to(room).emit("security_error", `${disconnectedPlayer.pseudo} a été déclaré forfait. Victoire pour ${connectedPlayer.pseudo} !`);
+                        }
+
+                        game.players = game.players.filter(p => p.connected);
+                        if (game.players.length === 0) {
+                            games.delete(room);
+                        } else {
+                            game.status = 'waiting';
+                            game.board = Array(9).fill(null);
+                            game.choices = {};
+                            game.lastResult = null;
+                            io.to(room).emit("update_ui", game);
+                        }
+                        broadcastActiveRooms(io);
+                    }, 3600000);
+                } else if (game.status === 'waiting_reconnect') {
+                    clearTimeout(game.reconnectTimeout);
+                    io.to(room).emit('message', {
+                        username: 'SYSTEM',
+                        userId: 'system',
+                        content: `${player.pseudo} a aussi quitté — partie annulée`,
+                        timestamp: new Date(),
+                    });
+                    games.delete(room);
+                    broadcastActiveRooms(io);
+                } else {
                     io.to(room).emit('message', {
                         username: 'SYSTEM',
                         userId: 'system',
                         content: `${player.pseudo} a quitté la salle`,
                         timestamp: new Date(),
                     });
-                }
 
-                game.players = game.players.filter(p => p.id !== socket.id);
-
-                if (game.players.length === 0) {
-                    games.delete(room);
-                } else {
-                    game.status = 'waiting';
-                    game.board = Array(9).fill(null);
-                    game.choices = {};
-                    game.lastResult = null;
-                    io.to(room).emit("update_ui", game);
-                    io.to(room).emit("security_error", "L'adversaire a quitté la partie.");
+                    game.players = game.players.filter(p => p.id !== socket.id);
+                    if (game.players.length === 0) {
+                        games.delete(room);
+                    } else {
+                        game.status = 'waiting';
+                        game.board = Array(9).fill(null);
+                        game.choices = {};
+                        game.lastResult = null;
+                        io.to(room).emit("update_ui", game);
+                        io.to(room).emit("security_error", "L'adversaire a quitté la partie.");
+                    }
+                    broadcastActiveRooms(io);
                 }
             }
         });
@@ -167,6 +290,7 @@ async function handleTictactoe(game, index, socketId, room, io) {
                     const leaderboard = await getLeaderboard();
                     io.emit('leaderboard_update', leaderboard);
                 }
+                broadcastActiveRooms(io);
             }
         }
     } else {
@@ -212,6 +336,7 @@ async function handleShifumi(game, choice, socketId, room, io) {
                 const leaderboard = await getLeaderboard();
                 io.emit('leaderboard_update', leaderboard);
             }
+            broadcastActiveRooms(io);
         } else {
             game.choices = {};
         }
