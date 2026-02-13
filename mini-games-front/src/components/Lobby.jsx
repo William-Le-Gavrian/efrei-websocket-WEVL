@@ -21,6 +21,14 @@ function Lobby({ onJoin, initialPseudo, leaderboard, activeRooms, pendingSession
   console.log("Pending session:", pendingSession);
 
   const selectedRoom = (room && availableRooms.includes(room)) ? room : (availableRooms[0] || "");
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    const cleanRoom = room.trim().toLowerCase().replace(/\s+/g, '-');
+
+    if (selectedRoom) onJoin(initialPseudo, selectedRoom, gameType); }
+  };
 
   return (
     <div className="flex items-center justify-center p-4 font-gaming">
@@ -29,7 +37,11 @@ function Lobby({ onJoin, initialPseudo, leaderboard, activeRooms, pendingSession
         {/* Titre et Stats */}
         <div className="mb-8 text-center">
             <h1 className="text-4xl font-black text-white tracking-tighter uppercase">
-                {gameType === "tictactoe" ? "TIC TAC TOE" : "SHI-FU-MI"}
+              {{
+                tictactoe: "TIC TAC TOE",
+                shifumi: "SHI-FU-MI",
+                hangman: "HANGMAN"
+              }[gameType]}
             </h1>
             <p className="text-blue-500 font-bold text-xs mt-2 italic tracking-widest">
                 JOUEUR : {initialPseudo.toUpperCase()} | {myWins}W - {myLosses}L
@@ -47,24 +59,28 @@ function Lobby({ onJoin, initialPseudo, leaderboard, activeRooms, pendingSession
             Reprendre — {pendingSession.gameType.toUpperCase()} sur {pendingSession.room}
           </button>
         )}
-
-        <form onSubmit={(e) => { e.preventDefault(); if (selectedRoom) onJoin(initialPseudo, selectedRoom, gameType); }} className="space-y-6">
-
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          
           {/* SÉLECTEUR DE JEU */}
           <div className="flex p-1 bg-slate-800/50 rounded-2xl gap-1 border border-white/5">
             <button type="button" onClick={() => setGameType("tictactoe")}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${gameType === 'tictactoe' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>
+              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${gameType === 'tictactoe' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
               TICTACTOE
             </button>
             <button type="button" onClick={() => setGameType("shifumi")}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${gameType === 'shifumi' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>
+              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${gameType === 'shifumi' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>
               SHIFUMI
+            </button>
+            <button type="button" onClick={() => setGameType("hangman")}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${gameType === 'hangman' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>
+              HANGMAN
             </button>
           </div>
 
           {/* LISTE DÉROULANTE DES SALLES */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-500 uppercase ml-1 tracking-widest">Sélectionner une Planète</label>
+            <label className="text-xs font-bold text-slate-500 uppercase ml-1 tracking-widest">Destination orbitale</label>
             <div className="relative">
               {availableRooms.length > 0 ? (
                 <select

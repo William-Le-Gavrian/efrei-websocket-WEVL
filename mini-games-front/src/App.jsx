@@ -7,6 +7,7 @@ import Shifumi from './components/Shifumi';
 import Chat from "./components/Chat";
 import PseudoEntry from './components/PseudoEntry';
 import Classement from './components/Classement';
+import Hangman from "./components/Hangman.jsx";
 
 const socket = io("http://localhost:3001");
 
@@ -128,9 +129,7 @@ function App() {
     window.location.reload();
   };
 
-  if (!myPseudo) {
-    return <PseudoEntry onSave={savePseudo} />;
-  }
+  if (!myPseudo) return <PseudoEntry onSave={savePseudo} />;
 
   return (
     <div className="flex flex-col h-screen bg-[#020617] font-gaming text-slate-200 overflow-hidden">
@@ -143,9 +142,8 @@ function App() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] h-[1100px] border border-white/10 rounded-full opacity-50" />
       </div>
 
-      {/* HEADER FIXE */}
       <header className="z-50 border-b border-white/5 bg-slate-950/60 backdrop-blur-xl p-4 h-20 shrink-0">
-        <div className="max-w-full mx-auto flex justify-between items-center">
+        <div className="max-w-full mx-auto flex justify-between items-center px-4">
           <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.location.reload()}>
             <div className="p-2 bg-blue-600 rounded-lg shadow-lg shadow-blue-900/40 group-hover:rotate-12 transition-transform">
               <Gamepad2 size={20} className="text-white" />
@@ -168,7 +166,7 @@ function App() {
             </div>
             <button onClick={() => { setShowClassement(prev => !prev); setIsJoined(false); }} className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 rounded-full border border-purple-500/20 hover:bg-purple-500/20 transition-all cursor-pointer">
               <Medal size={14} className="text-purple-400" />
-              <span className="text-xs font-bold text-purple-400 hidden sm:inline uppercase">Classement</span>
+              <span className="text-xs font-bold text-purple-400 hidden sm:inline uppercase">CLASSEMENT</span>
             </button>
             <button onClick={handleLogout} className="p-2 text-slate-500 hover:text-red-400 transition-all">
               <LogOut size={18} />
@@ -177,47 +175,32 @@ function App() {
         </div>
       </header>
 
-      {/* ZONE PRINCIPALE SPLIT : JEU + CHAT */}
-      <div className="flex flex-1 overflow-hidden">
-
-        {/* COLONNE GAUCHE : LOBBY OU JEU */}
-        <main className="flex-1 overflow-y-auto relative z-10 custom-scrollbar">
-          <div className="p-6 h-full">
-            {showClassement ? (
-              <div className="max-w-4xl mx-auto"><Classement leaderboard={leaderboard} currentPseudo={myPseudo} /></div>
-            ) : !isJoined ? (
-              <div className="max-w-4xl mx-auto"><Lobby onJoin={handleJoin} initialPseudo={myPseudo} leaderboard={leaderboard} activeRooms={activeRooms} pendingSession={pendingSession} /></div>
-            ) : (
-              <div className="w-full h-full max-w-5xl mx-auto">
-                {gameState ? (
-                  <div className="animate-in fade-in zoom-in duration-300">
-                    {currentGame === "tictactoe" ? (
-                      <Tictactoe gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
-                    ) : (
-                      <Shifumi gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-slate-500 italic">
-                    Synchronisation orbitale en cours...
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </main>
-
-        {/* COLONNE DROITE : CHAT */}
-        {isJoined && !showClassement && (
-          <aside className="w-80 border-l border-white/5 bg-slate-950/40 backdrop-blur-md hidden lg:flex flex-col shrink-0 animate-in slide-in-from-right duration-500">
+      <main className="relative z-10 py-10 px-4">
+        {showClassement ? (
+          <Classement leaderboard={leaderboard} currentPseudo={myPseudo} socket={socket} />
+        ) : !isJoined ? (
+          <Lobby onJoin={handleJoin} initialPseudo={myPseudo} leaderboard={leaderboard} activeRooms={activeRooms} pendingSession={pendingSession} />
+        ) : (
+          <div className="flex">
+            <div className="animate-in fade-in zoom-in duration-300 flex-2">
+              {currentGame === "tictactoe" && (
+                  <Tictactoe gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
+              )}
+              {currentGame === "shifumi" && (
+                  <Shifumi gameState={gameState} onMove={handleMove} myPseudo={myPseudo} socketId={socket.id} />
+              )}
+              {currentGame === "hangman" && (
+                  <Hangman gameState={gameState} socket={socket} />
+              )}
+            </div>
             <Chat
               messages={messages}
               socket={socket}
               socketId={socket.id}
             />
-          </aside>
+          </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

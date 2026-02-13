@@ -15,12 +15,12 @@ const io = new Server(server, {
 });
 
 io.on("connection", (socket) => {
-  console.log(`📡 Nouveau pilote connecté : ${socket.id}`);
+  console.log(`Nouveau pilote connecté : ${socket.id}`);
 
   roomHandlers(io, socket);
 
   socket.on("disconnect", () => {
-    console.log(`❌ Pilote déconnecté : ${socket.id}`);
+    console.log(`Pilote déconnecté : ${socket.id}`);
   });
 });
 

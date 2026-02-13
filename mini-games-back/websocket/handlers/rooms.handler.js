@@ -1,5 +1,6 @@
 import { checkWin } from '../../services/tictactoe.js';
 import { getWinner } from '../../services/shifumi.js';
+import { setWord, guessLetter, guessWord } from "../../services/hangman.js";
 import { saveGameResult, getLeaderboard } from '../../services/mongodb.js';
 
 const games = new Map();
@@ -101,26 +102,41 @@ export const roomHandlers = (io, socket) => {
         console.log(`${pseudo} a rejoint la salle : ${room}`);
 
         if (!games.has(room)) {
-            games.set(room, {
+            let newGame = {
                 roomName: room,
                 gameType: gameType,
                 status: 'waiting',
                 players: [],
-                board: Array(9).fill(null),
-                turn: 0,
-                scores: {},
-                choices: {},
                 lastResult: null
-            });
+            }
+
+            if ('tictactoe' === gameType) {
+                newGame.board = Array(9).fill(null);
+                newGame.scores = { X: 0, O: 0 };
+                newGame.turn = 0;
+            } else if ('shifumi' === gameType) {
+                newGame.choices = {};
+            } else if ('hangman' === gameType) {
+                newGame.word = "";
+                newGame.maskedWord = "";
+                newGame.lettersGuessed = [];
+                newGame.errors = 0;
+                newGame.maxErrors = 10;
+            }
+
+            games.set(room, newGame);
         }
 
         const game = games.get(room);
 
         if (!game.players.find(p => p.id === socket.id)) {
             game.players.push({ id: socket.id, pseudo: pseudo, connected: true });
+            game.lastResult = null;
 
             if (game.gameType === 'tictactoe' && game.players.length === 1) {
                 game.scores = { X: 0, O: 0 };
+                // game.board = Array(9).fill(null);
+                // game.turn = 0;
             }
         }
 
@@ -129,13 +145,14 @@ export const roomHandlers = (io, socket) => {
             userId: 'system',
             content: `${pseudo} a rejoint la salle`,
             timestamp: new Date(),
-        })
+        });
 
         if (game.players.length === 2) {
             game.status = 'playing';
-            game.board = Array(9).fill(null);
-            if (game.gameType === 'shifumi') {
+            if ('shifumi' === game.gameType) {
                 game.scores = { [game.players[0].id]: 0, [game.players[1].id]: 0 };
+            } else if ('hangman' === game.gameType) {
+                game.status = 'choosing';
             }
         }
 
@@ -148,16 +165,21 @@ export const roomHandlers = (io, socket) => {
         const room = Array.from(socket.rooms).find(r => r !== socket.id);
         const game = games.get(room);
 
-        if (!game || game.status !== 'playing') return;
+        if (!game) return;
 
-        if (game.gameType === 'tictactoe') {
+        if ('tictactoe' === game.gameType) {
             handleTictactoe(game, moveData, socket.id, room, io);
-        } else if (game.gameType === 'shifumi') {
+        } else if ('shifumi' === game.gameType) {
             handleShifumi(game, moveData, socket.id, room, io);
+        } else if ('hangman' === game.gameType) {
+            handleHangman(game, room, socket.id, io, moveData);
         }
     });
 
-    // ÉVÉNEMENT : DÉCONNEXION
+    socket.on('leave_room', () => {
+        handleDeparture(socket, io);
+    });
+
     socket.on('disconnecting', () => {
         socket.rooms.forEach(room => {
             const game = games.get(room);
@@ -243,17 +265,25 @@ export const roomHandlers = (io, socket) => {
 
     socket.on('message', (msg) => {
         const room = Array.from(socket.rooms).find(room => room !== socket.id);
+        if (!room) {
+            return
+        }
+
         const game = games.get(room);
-        if (!game) return;
+        if (!game) {
+            return
+        }
 
         const currentUser = game.players.find(player => socket.id === player.id);
-        if(!currentUser) return;
+        if (!currentUser) {
+            return;
+        }
 
         io.to(room).emit('message', {
-          username: currentUser.pseudo,
-          userId: socket.id,
-          content: msg,
-          timestamp: new Date(),
+            username: currentUser.pseudo,
+            userId: socket.id,
+            content: msg,
+            timestamp: new Date(),
         });
     })
 };
@@ -261,6 +291,7 @@ export const roomHandlers = (io, socket) => {
 // --- LOGIQUE INTERNE TICTACTOE ---
 async function handleTictactoe(game, index, socketId, room, io) {
     const playerIndex = game.players.findIndex(p => p.id === socketId);
+
     if (playerIndex !== game.turn || game.board[index] !== null) return;
 
     const symbol = game.turn === 0 ? 'X' : 'O';
@@ -280,7 +311,7 @@ async function handleTictactoe(game, index, socketId, room, io) {
                 game.lastResult = result;
                 const winnerIndex = result === 'X' ? 0 : 1;
                 const loserIndex = result === 'X' ? 1 : 0;
-                if(game.players[winnerIndex] && game.players[loserIndex]) {
+                if (game.players[winnerIndex] && game.players[loserIndex]) {
                     await saveGameResult({
                         winner: game.players[winnerIndex].pseudo,
                         loser: game.players[loserIndex].pseudo,
@@ -326,7 +357,7 @@ async function handleShifumi(game, choice, socketId, room, io) {
             game.lastResult = winnerId;
             const winner = game.players.find(p => p.id === winnerId);
             const loser = game.players.find(p => p.id !== winnerId);
-            if(winner && loser) {
+            if (winner && loser) {
                 await saveGameResult({
                     winner: winner.pseudo,
                     loser: loser.pseudo,
@@ -343,4 +374,35 @@ async function handleShifumi(game, choice, socketId, room, io) {
     }
 
     io.to(room).emit("update_ui", game);
+}
+// --- LOGIQUE INTERNE HANGMAN ---
+async function handleHangman(game, room, socketId, io, data) {
+    if ('choosing' === game.status) {
+        if (socketId !== game.players[0].id) {
+            return;
+        }
+        setWord(game, data.value);
+
+    } else if ('playing' === game.status) {
+        if (socketId !== game.players[1].id) {
+            return;
+        }
+
+        if ('letter' === data.type) {
+            guessLetter(game, data.value);
+        }
+
+        if ('word' === data.type) {
+            guessWord(game, data.value);
+        }
+    } else if ('finished' === game.status) {
+        await saveGameResult({
+            winner: game.players[winnerIndex].pseudo,
+            loser: game.players[loserIndex].pseudo,
+            gameType: 'hangman'
+        });
+        const leaderboard = await getLeaderboard();
+        io.emit('leaderboard_update', leaderboard);
+    }
+    broadcastActiveRooms(io);
 }
